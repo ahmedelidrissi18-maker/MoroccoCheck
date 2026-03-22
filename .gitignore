@@ -9,10 +9,12 @@ node_modules/
 # Logs
 *.log
 npm-debug.log*
+.run-logs/
 
 # Fichiers système
 .DS_Store
 Thumbs.db
+*.class
 
 # Uploads / fichiers générés
 uploads/
