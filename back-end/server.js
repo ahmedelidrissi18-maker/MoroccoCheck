@@ -2,8 +2,11 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import helmet from 'helmet';
-import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import pool from './src/config/database.js';
+import runtimeConfig from './src/config/runtime.js';
+import { createCorsOptions, describeCorsOrigins } from './src/config/cors.js';
 import healthRoutes from './src/routes/health.routes.js';
 import authRoutes from './src/routes/auth.routes.js';
 import sitesRoutes from './src/routes/sites.routes.js';
@@ -13,18 +16,46 @@ import reviewsRoutes from './src/routes/reviews.routes.js';
 import usersRoutes from './src/routes/users.routes.js';
 import adminRoutes from './src/routes/admin.routes.js';
 import errorMiddleware from './src/middleware/error.middleware.js';
+import requestContextMiddleware from './src/middleware/request-context.middleware.js';
+import { ensureUploadsDirectories, uploadsRoot } from './src/utils/media.utils.js';
+import { logInfo } from './src/utils/logger.utils.js';
+import { initMonitoring, isMonitoringEnabled } from './src/config/monitoring.js';
 
 // Configuration
-dotenv.config();
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = runtimeConfig.port;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const corsOptions = createCorsOptions();
+
+ensureUploadsDirectories();
+initMonitoring();
 
 // Middleware
 app.use(helmet());
-app.use(cors());
+app.use(cors(corsOptions));
+app.use(requestContextMiddleware);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(morgan('dev'));
+app.use(
+  morgan((tokens, req, res) =>
+    JSON.stringify({
+      level: 'info',
+      event: 'http_request',
+      timestamp: new Date().toISOString(),
+      request_id: req.requestId,
+      method: tokens.method(req, res),
+      path: tokens.url(req, res),
+      status: Number(tokens.status(req, res)),
+      response_time_ms: Number(tokens['response-time'](req, res)),
+      content_length: tokens.res(req, res, 'content-length') || null,
+      ip: req.ip,
+      user_id: req.userId || null,
+      user_role: req.userRole || null
+    })
+  )
+);
+app.use('/uploads', express.static(path.resolve(__dirname, 'uploads')));
 
 // Routes de test
 
@@ -61,15 +92,11 @@ app.listen(PORT, () => {
 `;
     
     console.log(box);
-    console.log('Available endpoints:');
-    console.log('  GET /api/health     - Health check');
-    console.log('  GET /api/health/db  - Database connectivity and stats');
-    console.log('  GET /api/health/system - System information');
-    console.log('  POST /api/auth/register - User registration');
-    console.log('  POST /api/auth/login    - User login');
-    console.log('  GET /api/sites          - Tourist sites listing');
-    console.log('  POST /api/checkins      - GPS check-in');
-    console.log('  POST /api/reviews       - Reviews');
-    console.log('  GET /api/admin/stats    - Admin dashboard');
-    console.log('');
+    logInfo('server_started', {
+      port: PORT,
+      environment: runtimeConfig.nodeEnv,
+      monitoring_enabled: isMonitoringEnabled(),
+      cors_origins: describeCorsOrigins(),
+      cors_allow_no_origin: runtimeConfig.cors.allowNoOrigin
+    });
 });

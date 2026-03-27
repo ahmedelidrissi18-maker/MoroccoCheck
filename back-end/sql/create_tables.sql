@@ -52,7 +52,7 @@ CREATE TABLE users (
     profile_picture VARCHAR(500),
     bio TEXT,
     
-    role ENUM('TOURIST', 'CONTRIBUTOR', 'PROFESSIONAL', 'MODERATOR', 'ADMIN') 
+    role ENUM('TOURIST', 'CONTRIBUTOR', 'PROFESSIONAL', 'ADMIN') 
         NOT NULL DEFAULT 'TOURIST',
     status ENUM('ACTIVE', 'INACTIVE', 'SUSPENDED', 'BANNED', 'PENDING_VERIFICATION') 
         NOT NULL DEFAULT 'PENDING_VERIFICATION',
@@ -89,6 +89,34 @@ CREATE TABLE users (
     INDEX idx_google_id (google_id),
     INDEX idx_facebook_id (facebook_id),
     INDEX idx_apple_id (apple_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- TABLE: contributor_requests
+-- ============================================
+DROP TABLE IF EXISTS contributor_requests;
+
+CREATE TABLE contributor_requests (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    requested_role ENUM('CONTRIBUTOR') NOT NULL DEFAULT 'CONTRIBUTOR',
+    status ENUM('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
+    motivation TEXT NOT NULL,
+    admin_notes TEXT,
+    reviewed_by INT UNSIGNED NULL,
+    reviewed_at TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (reviewed_by) REFERENCES users(id)
+        ON DELETE SET NULL ON UPDATE CASCADE,
+
+    INDEX idx_contributor_requests_user_id (user_id),
+    INDEX idx_contributor_requests_status (status),
+    INDEX idx_contributor_requests_created_at (created_at),
+    INDEX idx_contributor_requests_reviewed_by (reviewed_by)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================

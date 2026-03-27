@@ -12,6 +12,7 @@ import express from 'express';
 import {
   register,
   login,
+  googleLogin,
   getProfile,
   updateProfile,
   refresh,
@@ -19,6 +20,11 @@ import {
 } from '../controllers/auth.controller.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import { asyncHandler } from '../middleware/error.middleware.js';
+import {
+  registerRateLimit,
+  loginRateLimit,
+  refreshRateLimit
+} from '../middleware/rate-limit.middleware.js';
 
 const router = express.Router();
 
@@ -27,15 +33,16 @@ const router = express.Router();
  * @desc    Register a new user
  * @access  Public
  */
-router.post('/register', asyncHandler(register));
+router.post('/register', registerRateLimit, asyncHandler(register));
 
 /**
  * @route   POST /api/auth/login
  * @desc    Login user and return JWT token
  * @access  Public
  */
-router.post('/login', asyncHandler(login));
-router.post('/refresh', asyncHandler(refresh));
+router.post('/login', loginRateLimit, asyncHandler(login));
+router.post('/google', loginRateLimit, asyncHandler(googleLogin));
+router.post('/refresh', refreshRateLimit, asyncHandler(refresh));
 
 /**
  * @route   GET /api/auth/profile

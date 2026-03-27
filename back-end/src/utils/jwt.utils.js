@@ -4,11 +4,13 @@
  */
 
 import jwt from 'jsonwebtoken';
+import { randomUUID } from 'crypto';
+import runtimeConfig from '../config/runtime.js';
 
 const JWT_SECRET =
-  process.env.JWT_SECRET ||
-  (process.env.NODE_ENV === 'test' ? 'test-secret-key' : undefined);
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+  runtimeConfig.jwt.secret ||
+  (runtimeConfig.isTest ? 'test-secret-key' : undefined);
+const JWT_EXPIRES_IN = runtimeConfig.jwt.expiresIn;
 
 /**
  * Génère un token d'accès pour un utilisateur
@@ -21,7 +23,8 @@ export function generateToken(user, expiresIn = JWT_EXPIRES_IN) {
   const payload = {
     userId: user.userId ?? user.id,
     email: user.email,
-    role: user.role
+    role: user.role,
+    jti: randomUUID()
   };
   return jwt.sign(payload, JWT_SECRET, { expiresIn });
 }

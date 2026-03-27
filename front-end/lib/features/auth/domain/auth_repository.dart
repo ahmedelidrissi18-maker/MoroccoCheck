@@ -8,6 +8,10 @@ abstract class AuthRepository {
   /// Throws an exception if login fails
   Future<User> login(String email, String password);
 
+  /// Login user with Google Sign-In
+  /// Returns a User object if successful
+  Future<User> loginWithGoogle();
+
   /// Register a new user
   /// Returns a User object with token if successful
   /// Throws an exception if registration fails

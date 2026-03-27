@@ -1,19 +1,41 @@
-import { before, describe, it } from 'mocha';
+import { after, before, describe, it } from 'mocha';
 import { expect } from 'chai';
 import dotenv from 'dotenv';
 import express from 'express';
-import jwt from 'jsonwebtoken';
 import request from 'supertest';
 import { adminMiddleware, authMiddleware } from '../src/middleware/auth.middleware.js';
+import { generateToken } from '../src/utils/jwt.utils.js';
+import {
+  cleanupTestData,
+  createSessionForUser,
+  createTestUser,
+  hasTable,
+  isDatabaseAvailable
+} from './helpers/db.helper.js';
 
 dotenv.config();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'test-secret-key';
-
 describe('Authentication Middleware', function () {
   let app;
+  let touristUser;
+  let adminUser;
+  let touristToken;
+  let adminToken;
+  let dbReady = false;
+  let schemaReady = false;
 
-  before(function () {
+  before(async function () {
+    dbReady = await isDatabaseAvailable();
+    const requiredTables = await Promise.all([
+      hasTable('users'),
+      hasTable('sessions')
+    ]);
+    schemaReady = requiredTables.every(Boolean);
+
+    if (!dbReady || !schemaReady) {
+      this.skip();
+    }
+
     app = express();
     app.use(express.json());
 
@@ -32,23 +54,41 @@ describe('Authentication Middleware', function () {
         userRole: req.userRole
       });
     });
+
+    touristUser = await createTestUser({
+      role: 'TOURIST',
+      email: `middleware.tourist.${Date.now()}@example.com`
+    });
+    adminUser = await createTestUser({
+      role: 'ADMIN',
+      email: `middleware.admin.${Date.now()}@example.com`
+    });
+
+    const touristSession = await createSessionForUser(touristUser);
+    const adminSession = await createSessionForUser(adminUser);
+    touristToken = touristSession.access_token;
+    adminToken = adminSession.access_token;
+  });
+
+  after(async function () {
+    if (!dbReady || !schemaReady) {
+      return;
+    }
+
+    await cleanupTestData({
+      userIds: [touristUser?.id, adminUser?.id].filter(Boolean)
+    });
   });
 
   it('should allow access with a valid token', async function () {
-    const token = jwt.sign(
-      { userId: 1, email: 'test@example.com', role: 'TOURIST' },
-      JWT_SECRET,
-      { expiresIn: '1h' }
-    );
-
     const response = await request(app)
       .get('/protected')
-      .set('Authorization', `Bearer ${token}`)
+      .set('Authorization', `Bearer ${touristToken}`)
       .expect(200);
 
     expect(response.body).to.include({
       success: true,
-      userId: 1,
+      userId: touristUser.id,
       userRole: 'TOURIST'
     });
   });
@@ -71,30 +111,23 @@ describe('Authentication Middleware', function () {
   });
 
   it('should reject expired token', async function () {
-    const token = jwt.sign(
-      { userId: 1, email: 'test@example.com', role: 'TOURIST' },
-      JWT_SECRET,
-      { expiresIn: '-1h' }
-    );
+    const expiredToken = generateToken(touristUser, '-1h');
+    await createSessionForUser(touristUser, {
+      access_token: expiredToken
+    });
 
     const response = await request(app)
       .get('/protected')
-      .set('Authorization', `Bearer ${token}`)
+      .set('Authorization', `Bearer ${expiredToken}`)
       .expect(401);
 
     expect(response.body.message).to.equal('Token expire');
   });
 
   it('should allow admin access for ADMIN role', async function () {
-    const token = jwt.sign(
-      { userId: 1, email: 'admin@example.com', role: 'ADMIN' },
-      JWT_SECRET,
-      { expiresIn: '1h' }
-    );
-
     const response = await request(app)
       .get('/admin')
-      .set('Authorization', `Bearer ${token}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
 
     expect(response.body.success).to.equal(true);
@@ -102,30 +135,18 @@ describe('Authentication Middleware', function () {
   });
 
   it('should reject non-admin access', async function () {
-    const token = jwt.sign(
-      { userId: 1, email: 'user@example.com', role: 'TOURIST' },
-      JWT_SECRET,
-      { expiresIn: '1h' }
-    );
-
     const response = await request(app)
       .get('/admin')
-      .set('Authorization', `Bearer ${token}`)
+      .set('Authorization', `Bearer ${touristToken}`)
       .expect(403);
 
     expect(response.body.message).to.equal('Acces refuse');
   });
 
   it('should accept authorization header with extra spaces', async function () {
-    const token = jwt.sign(
-      { userId: 1, email: 'test@example.com', role: 'TOURIST' },
-      JWT_SECRET,
-      { expiresIn: '1h' }
-    );
-
     const response = await request(app)
       .get('/protected')
-      .set('Authorization', `  Bearer   ${token}  `)
+      .set('Authorization', `  Bearer   ${touristToken}  `)
       .expect(200);
 
     expect(response.body.success).to.equal(true);

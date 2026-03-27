@@ -1,11 +1,17 @@
 import pool from '../config/database.js';
 import { randomBytes, randomUUID } from 'crypto';
 import { USER_RANKS, USER_ROLES, USER_STATUS } from '../config/constants.js';
+import runtimeConfig from '../config/runtime.js';
+import { verifyGoogleIdToken } from '../utils/google-auth.utils.js';
 import { decodeToken, generateToken } from '../utils/jwt.utils.js';
 import { hashPassword, verifyPassword } from '../utils/password.utils.js';
 import { awardEligibleBadges, syncUserStats, toAppError } from './common.service.js';
 
-const REFRESH_TOKEN_TTL_DAYS = Number(process.env.REFRESH_TOKEN_TTL_DAYS || 30);
+const REFRESH_TOKEN_TTL_DAYS = runtimeConfig.jwt.refreshTokenTtlDays;
+const PUBLIC_USER_SELECT = `SELECT id, first_name, last_name, email, role, status, points, level, rank, profile_picture,
+        checkins_count, reviews_count, created_at, updated_at
+   FROM users
+   WHERE id = ?`;
 
 function normalizeDeviceType(deviceInfo = {}) {
   const rawType = String(
@@ -30,6 +36,126 @@ function buildSessionPayload(accessToken, refreshToken) {
     expires_in: decoded?.exp && decoded?.iat ? decoded.exp - decoded.iat : null,
     token: accessToken
   };
+}
+
+function isAccountDisabled(status) {
+  return [
+    USER_STATUS.SUSPENDED,
+    USER_STATUS.BANNED,
+    USER_STATUS.INACTIVE
+  ].includes(status);
+}
+
+function normalizeGoogleProfile(profile) {
+  const fullName = String(profile.name || '').trim();
+  const firstName =
+    String(profile.given_name || '').trim() ||
+    (fullName ? fullName.split(/\s+/)[0] : 'Utilisateur');
+  const remainingName =
+    String(profile.family_name || '').trim() ||
+    fullName
+      .split(/\s+/)
+      .slice(1)
+      .join(' ')
+      .trim();
+
+  return {
+    first_name: firstName || 'Utilisateur',
+    last_name: remainingName || 'Google',
+    email: String(profile.email || '').trim().toLowerCase(),
+    google_id: String(profile.sub || '').trim(),
+    profile_picture: profile.picture || null,
+    is_email_verified: Boolean(profile.email_verified)
+  };
+}
+
+async function getPublicUserById(db, userId) {
+  const [rows] = await db.query(PUBLIC_USER_SELECT, [userId]);
+  return rows[0] || null;
+}
+
+async function updateUserLoginMetadata(db, userId) {
+  await db.query(
+    'UPDATE users SET last_login_at = NOW(), last_seen_at = NOW(), updated_at = NOW() WHERE id = ?',
+    [userId]
+  );
+}
+
+async function createGoogleUser(db, googleProfile) {
+  const passwordHash = await hashPassword(randomUUID());
+  const [result] = await db.query(
+    `INSERT INTO users (
+        email,
+        password_hash,
+        first_name,
+        last_name,
+        profile_picture,
+        role,
+        status,
+        points,
+        level,
+        rank,
+        is_email_verified,
+        google_id,
+        last_login_at,
+        last_seen_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1, ?, ?, ?, NOW(), NOW())`,
+    [
+      googleProfile.email,
+      passwordHash,
+      googleProfile.first_name,
+      googleProfile.last_name,
+      googleProfile.profile_picture,
+      USER_ROLES.TOURIST,
+      USER_STATUS.ACTIVE,
+      USER_RANKS.BRONZE,
+      googleProfile.is_email_verified,
+      googleProfile.google_id
+    ]
+  );
+
+  return getPublicUserById(db, result.insertId);
+}
+
+async function linkGoogleIdentity(db, user, googleProfile) {
+  if (user.google_id && user.google_id !== googleProfile.google_id) {
+    throw toAppError(
+      'Ce compte est deja lie a un autre compte Google',
+      409,
+      'GOOGLE_ACCOUNT_ALREADY_LINKED'
+    );
+  }
+
+  const updates = [];
+  const params = [];
+
+  if (!user.google_id) {
+    updates.push('google_id = ?');
+    params.push(googleProfile.google_id);
+  }
+
+  if (googleProfile.is_email_verified && !user.is_email_verified) {
+    updates.push('is_email_verified = TRUE');
+  }
+
+  if (!user.profile_picture && googleProfile.profile_picture) {
+    updates.push('profile_picture = ?');
+    params.push(googleProfile.profile_picture);
+  }
+
+  updates.push('last_login_at = NOW()');
+  updates.push('last_seen_at = NOW()');
+  updates.push('updated_at = NOW()');
+
+  params.push(user.id);
+  await db.query(
+    `UPDATE users
+     SET ${updates.join(', ')}
+     WHERE id = ?`,
+    params
+  );
+
+  return getPublicUserById(db, user.id);
 }
 
 async function createSession(db, user, requestContext = {}) {
@@ -100,15 +226,7 @@ export async function registerUser(payload, requestContext = {}) {
   );
 
   const userId = result.insertId;
-  const [rows] = await pool.query(
-    `SELECT id, first_name, last_name, email, role, status, points, level, rank, profile_picture,
-            checkins_count, reviews_count, created_at, updated_at
-     FROM users
-     WHERE id = ?`,
-    [userId]
-  );
-
-  const user = rows[0];
+  const user = await getPublicUserById(pool, userId);
   const session = await createSession(pool, user, requestContext);
 
   return {
@@ -131,28 +249,53 @@ export async function loginUser(payload, requestContext = {}) {
     throw toAppError('Email ou mot de passe incorrect', 401, 'INVALID_CREDENTIALS');
   }
 
-  if ([USER_STATUS.SUSPENDED, USER_STATUS.BANNED, USER_STATUS.INACTIVE].includes(user.status)) {
+  if (isAccountDisabled(user.status)) {
     throw toAppError('Compte indisponible', 403, 'ACCOUNT_DISABLED');
   }
 
-  await pool.query(
-    'UPDATE users SET last_login_at = NOW(), last_seen_at = NOW(), updated_at = NOW() WHERE id = ?',
-    [user.id]
-  );
-
-  const [freshRows] = await pool.query(
-    `SELECT id, first_name, last_name, email, role, status, points, level, rank, profile_picture,
-            checkins_count, reviews_count, created_at, updated_at
-     FROM users
-     WHERE id = ?`,
-    [user.id]
-  );
-  const freshUser = freshRows[0];
+  await updateUserLoginMetadata(pool, user.id);
+  const freshUser = await getPublicUserById(pool, user.id);
   const session = await createSession(pool, freshUser, requestContext);
 
   return {
     ...session,
     user: freshUser
+  };
+}
+
+export async function loginWithGoogleToken(payload, requestContext = {}, dependencies = {}) {
+  const verifyGoogleToken =
+    dependencies.verifyGoogleToken || verifyGoogleIdToken;
+  const verifiedToken = await verifyGoogleToken(payload.id_token);
+  const googleProfile = normalizeGoogleProfile(verifiedToken);
+
+  const [rows] = await pool.query(
+    `SELECT *
+     FROM users
+     WHERE deleted_at IS NULL
+       AND (google_id = ? OR email = ?)
+     ORDER BY CASE WHEN google_id = ? THEN 0 ELSE 1 END
+     LIMIT 1`,
+    [googleProfile.google_id, googleProfile.email, googleProfile.google_id]
+  );
+
+  let currentUser;
+  if (!rows.length) {
+    currentUser = await createGoogleUser(pool, googleProfile);
+  } else {
+    const existingUser = rows[0];
+    if (isAccountDisabled(existingUser.status)) {
+      throw toAppError('Compte indisponible', 403, 'ACCOUNT_DISABLED');
+    }
+
+    currentUser = await linkGoogleIdentity(pool, existingUser, googleProfile);
+  }
+
+  const session = await createSession(pool, currentUser, requestContext);
+
+  return {
+    ...session,
+    user: currentUser
   };
 }
 
@@ -245,7 +388,7 @@ export async function refreshSession(refreshToken, requestContext = {}) {
   }
 
   const session = rows[0];
-  if ([USER_STATUS.SUSPENDED, USER_STATUS.BANNED, USER_STATUS.INACTIVE].includes(session.status)) {
+  if (isAccountDisabled(session.status)) {
     throw toAppError('Compte indisponible', 403, 'ACCOUNT_DISABLED');
   }
 

@@ -6,6 +6,7 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../core/network/api_service.dart';
 import '../../../shared/models/user.dart';
 import '../../auth/presentation/auth_provider.dart';
+import '../../sites/presentation/sites_provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -19,7 +20,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Map<String, dynamic>? _stats;
   List<Map<String, dynamic>> _badges = [];
+  Map<String, dynamic>? _contributorRequestStatus;
   bool _isExtrasLoading = false;
+  bool _isContributorRequestSubmitting = false;
   String? _extrasError;
 
   @override
@@ -41,12 +44,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await authProvider.refreshUser();
       final stats = await _apiService.fetchMyStats();
       final badges = await _apiService.fetchMyBadges();
+      final contributorRequestStatus =
+          await _apiService.fetchContributorRequestStatus();
 
       if (!mounted) return;
 
       setState(() {
         _stats = stats;
         _badges = badges;
+        _contributorRequestStatus = contributorRequestStatus;
         _isExtrasLoading = false;
       });
     } catch (e) {
@@ -79,6 +85,118 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return value.map((key, data) => MapEntry(key.toString(), data));
     }
     return null;
+  }
+
+  List<String> _asStringList(dynamic value) {
+    if (value is List) {
+      return value
+          .map((item) => '$item')
+          .where((item) => item.trim().isNotEmpty)
+          .toList();
+    }
+    return <String>[];
+  }
+
+  Future<void> _openContributorRequestDialog(AuthProvider authProvider) async {
+    final controller = TextEditingController();
+    String? submitError;
+
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Demander le role CONTRIBUTOR'),
+              content: SizedBox(
+                width: 420,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Explique en quelques lignes pourquoi tu souhaites contribuer sur le terrain.',
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: controller,
+                      maxLines: 5,
+                      decoration: const InputDecoration(
+                        hintText:
+                            'Exemple: je visite regulierement des sites touristiques et je souhaite signaler les changements sur le terrain...',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    if (submitError != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        submitError!,
+                        style: const TextStyle(color: Colors.redAccent),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Annuler'),
+                ),
+                FilledButton(
+                  onPressed: () async {
+                    final motivation = controller.text.trim();
+                    if (motivation.length < 20) {
+                      setDialogState(() {
+                        submitError =
+                            'La motivation doit contenir au moins 20 caracteres.';
+                      });
+                      return;
+                    }
+
+                    try {
+                      setState(() => _isContributorRequestSubmitting = true);
+                      await _apiService.submitContributorRequest(
+                        motivation: motivation,
+                      );
+                      if (!mounted || !dialogContext.mounted) return;
+                      Navigator.of(dialogContext).pop(true);
+                    } catch (error) {
+                      setDialogState(() {
+                        submitError = error.toString().replaceFirst(
+                          'Exception: ',
+                          '',
+                        );
+                      });
+                    } finally {
+                      if (mounted) {
+                        setState(
+                          () => _isContributorRequestSubmitting = false,
+                        );
+                      }
+                    }
+                  },
+                  child: const Text('Envoyer'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    controller.dispose();
+
+    if (submitted == true) {
+      await _refreshProfile(authProvider);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Demande envoyee. Elle sera examinee par un admin.',
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -131,6 +249,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     AuthProvider authProvider,
     User user,
   ) {
+    final sitesProvider = context.watch<SitesProvider>();
     final points = _asMap(_stats?['points']);
     final activity = _asMap(_stats?['activity']);
     final achievements = _asMap(_stats?['achievements']);
@@ -143,6 +262,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   item.map((key, value) => MapEntry(key.toString(), value)),
             )
             .toList();
+    final activityItems = recentActivity.isNotEmpty
+        ? recentActivity
+        : sitesProvider.localRecentActivity
+              .take(5)
+              .map(
+                (entry) => <String, dynamic>{
+                  'type': entry.type == SiteActivityType.checkin
+                      ? 'CHECKIN'
+                      : 'REVIEW',
+                  'site_id': entry.siteId,
+                  'site_name': entry.siteName,
+                  'points_earned': entry.type == SiteActivityType.checkin
+                      ? 10
+                      : 5,
+                  'city': entry.city,
+                },
+              )
+              .toList();
 
     final totalPoints = _readInt(points?['total'], fallback: user.points);
     final level = _readInt(points?['level'], fallback: user.level);
@@ -154,10 +291,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .clamp(0, 1)
         .toDouble();
     final rank = _readString(points?['rank'], fallback: user.rank ?? 'BRONZE');
+    final contributorRequest = _asMap(_contributorRequestStatus?['request']);
+    final contributorEligibility =
+        _asMap(_contributorRequestStatus?['eligibility']);
+    final contributorMissingFields = _asStringList(
+      contributorEligibility?['missing_fields'],
+    );
+    final contributorRequestStatus = _readString(
+      contributorRequest?['status'],
+      fallback: 'NONE',
+    );
+    final canRequestContributor =
+        contributorEligibility?['can_request'] == true;
+    final shouldShowContributorCard =
+        (user.role ?? 'TOURIST') == 'TOURIST' || contributorRequest != null;
     final canManageSites =
-        user.role == 'PROFESSIONAL' ||
-        user.role == 'MODERATOR' ||
-        user.role == 'ADMIN';
+        user.role == 'PROFESSIONAL' || user.role == 'ADMIN';
 
     return RefreshIndicator(
       onRefresh: () => _refreshProfile(authProvider),
@@ -246,6 +395,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.push('/profile/edit', extra: user),
                 ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.lock_outline,
+                    color: AppColors.primary,
+                  ),
+                  title: const Text('Changer mon mot de passe'),
+                  subtitle: const Text(
+                    'Mettre a jour vos identifiants de connexion',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/profile/password'),
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.location_history_outlined,
+                    color: AppColors.primary,
+                  ),
+                  title: const Text('Mes check-ins'),
+                  subtitle: const Text(
+                    'Retrouver l historique de vos validations terrain',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/profile/checkins'),
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.rate_review_outlined,
+                    color: AppColors.primary,
+                  ),
+                  title: const Text('Mes avis'),
+                  subtitle: const Text(
+                    'Modifier ou supprimer vos retours d experience',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/profile/reviews'),
+                ),
                 _buildInfoTile(Icons.workspace_premium_outlined, 'Rang', rank),
                 _buildInfoTile(
                   Icons.badge_outlined,
@@ -287,6 +472,211 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
           ),
+          if (shouldShowContributorCard)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.how_to_reg_outlined,
+                            color: AppColors.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Passage vers CONTRIBUTOR',
+                              style: AppTextStyles.body.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          if (contributorRequest != null)
+                            Chip(
+                              label: Text(contributorRequestStatus),
+                              backgroundColor: const Color(0xFFE8EEF9),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        contributorRequest != null
+                            ? 'Statut actuel de votre demande: $contributorRequestStatus'
+                            : 'Envoyez une demande explicite pour obtenir le droit de faire des check-ins en tant que contributor.',
+                        style: AppTextStyles.caption.copyWith(
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildContributorRuleTile(
+                        Icons.verified_user_outlined,
+                        'Compte ACTIVE',
+                        (contributorEligibility?['is_active'] == true)
+                            ? 'Valide'
+                            : 'Compte non eligible',
+                      ),
+                      _buildContributorRuleTile(
+                        Icons.mark_email_read_outlined,
+                        'Email verifie',
+                        (contributorEligibility?['is_email_verified'] == true)
+                            ? 'Valide'
+                            : 'Verification requise',
+                      ),
+                      _buildContributorRuleTile(
+                        Icons.assignment_turned_in_outlined,
+                        'Profil minimum complete',
+                        (contributorEligibility?['is_profile_complete'] == true)
+                            ? 'Valide'
+                            : contributorMissingFields.isEmpty
+                                ? 'Informations manquantes'
+                                : 'A completer: ${contributorMissingFields.join(', ')}',
+                      ),
+                      if ((contributorRequest?['motivation'] ?? '')
+                          .toString()
+                          .trim()
+                          .isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          'Motivation envoyee',
+                          style: AppTextStyles.body.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${contributorRequest?['motivation']}',
+                          style: AppTextStyles.caption.copyWith(
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed:
+                                  canRequestContributor &&
+                                      !_isContributorRequestSubmitting
+                                  ? () => _openContributorRequestDialog(
+                                      authProvider,
+                                    )
+                                  : null,
+                              icon: _isContributorRequestSubmitting
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Icon(Icons.send_outlined),
+                              label: Text(
+                                contributorRequestStatus == 'REJECTED'
+                                    ? 'Renvoyer la demande'
+                                    : 'Demander maintenant',
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (!canRequestContributor &&
+                          contributorRequestStatus != 'PENDING' &&
+                          contributorRequestStatus != 'APPROVED') ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Complete les pre-requis puis renvoie la demande.',
+                          style: AppTextStyles.caption.copyWith(
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Mon journal',
+                      style: AppTextStyles.body.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Vos donnees locales enrichissent maintenant l experience meme avant le chargement complet du profil distant.',
+                      style: AppTextStyles.caption.copyWith(
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        _buildStatCard(
+                          '${sitesProvider.favoritesCount}',
+                          'favoris',
+                        ),
+                        _buildStatCard(
+                          '${sitesProvider.recentViewedSiteIds.length}',
+                          'visites',
+                        ),
+                        _buildStatCard(
+                          '${sitesProvider.localRecentActivity.length}',
+                          'actions',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (sitesProvider.recentViewedSites.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Card(
+                margin: EdgeInsets.zero,
+                child: Column(
+                  children: sitesProvider.recentViewedSites.take(3).map((site) {
+                    return ListTile(
+                      leading: const Icon(
+                        Icons.history,
+                        color: AppColors.primary,
+                      ),
+                      title: Text(site.name),
+                      subtitle: Text(
+                        [
+                          if (site.city.isNotEmpty) site.city,
+                          if (site.category.isNotEmpty) site.category,
+                        ].join(' • '),
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => context.push('/sites/${site.id}'),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Card(
@@ -320,6 +710,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => context.push('/profile/badges'),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Card(
+              margin: EdgeInsets.zero,
+              child: ListTile(
+                leading: const Icon(
+                  Icons.business_center_outlined,
+                  color: AppColors.primary,
+                ),
+                title: const Text('Espace professionnel'),
+                subtitle: Text(
+                  canManageSites
+                      ? 'Acceder au hub et gerer vos etablissements'
+                      : 'Decouvrir l espace dedie aux proprietaires et gestionnaires',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push('/professional'),
               ),
             ),
           ),
@@ -460,7 +870,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          if (recentActivity.isEmpty)
+          if (activityItems.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
@@ -471,9 +881,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             )
           else
-            ...recentActivity.take(5).map((item) {
+            ...activityItems.take(5).map((item) {
               final type = _readString(item['type'], fallback: 'ACTION');
               final isCheckin = type == 'CHECKIN';
+              final siteId = _readString(item['site_id']);
+              final photoUrl = _readString(
+                item['photo_thumbnail_url'],
+                fallback: _readString(item['photo_url']),
+              );
+              final photosCount = _readInt(item['photos_count']);
+              final detailSegments = <String>[
+                type == 'CHECKIN' ? 'Check-in' : 'Avis',
+                if (_readString(item['city']).isNotEmpty)
+                  _readString(item['city']),
+                '+${_readInt(item['points_earned'])} pts',
+                if (isCheckin && photosCount > 0)
+                  '$photosCount photo${photosCount > 1 ? 's' : ''}',
+              ];
+
               return ListTile(
                 leading: CircleAvatar(
                   radius: 18,
@@ -487,9 +912,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 title: Text(_readString(item['site_name'], fallback: 'Site')),
-                subtitle: Text(
-                  '${type == 'CHECKIN' ? 'Check-in' : 'Avis'} - +${_readInt(item['points_earned'])} pts',
-                ),
+                subtitle: Text(detailSegments.join(' - ')),
+                trailing: photoUrl.isNotEmpty
+                    ? _buildActivityThumbnail(photoUrl, photosCount)
+                    : siteId.isNotEmpty
+                    ? const Icon(Icons.chevron_right)
+                    : null,
+                onTap: () {
+                  final activityId = _readString(item['activity_id']);
+                  if (isCheckin && activityId.isNotEmpty) {
+                    context.push('/checkins/$activityId');
+                    return;
+                  }
+                  if (siteId.isNotEmpty) {
+                    context.push('/sites/$siteId');
+                  }
+                },
               );
             }),
           if (authProvider.error != null)
@@ -653,6 +1091,87 @@ class _ProfileScreenState extends State<ProfileScreen> {
         value,
         style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
       ),
+    );
+  }
+
+  Widget _buildContributorRuleTile(
+    IconData icon,
+    String label,
+    String value,
+  ) {
+    final isValid = value == 'Valide';
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: CircleAvatar(
+        radius: 18,
+        backgroundColor: isValid
+            ? Colors.green.withValues(alpha: 0.14)
+            : Colors.orange.withValues(alpha: 0.16),
+        child: Icon(
+          icon,
+          color: isValid ? Colors.green.shade700 : Colors.orange.shade800,
+          size: 18,
+        ),
+      ),
+      title: Text(label),
+      subtitle: Text(
+        value,
+        style: AppTextStyles.caption.copyWith(color: Colors.grey[700]),
+      ),
+    );
+  }
+
+  Widget _buildActivityThumbnail(String imageUrl, int photosCount) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.network(
+            imageUrl,
+            width: 56,
+            height: 56,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                width: 56,
+                height: 56,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceAlt,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: const Icon(
+                  Icons.image_not_supported_outlined,
+                  color: Colors.grey,
+                ),
+              );
+            },
+          ),
+        ),
+        if (photosCount > 1)
+          Positioned(
+            right: -4,
+            bottom: -4,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                '+$photosCount',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

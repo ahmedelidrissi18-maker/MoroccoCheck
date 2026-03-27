@@ -2,13 +2,17 @@ class ProfessionalSite {
   final String id;
   final String name;
   final String description;
+  final String nameAr;
+  final String descriptionAr;
   final String categoryName;
   final int? categoryId;
+  final String subcategory;
   final double latitude;
   final double longitude;
   final String address;
   final String city;
   final String region;
+  final String postalCode;
   final String country;
   final String phoneNumber;
   final String email;
@@ -24,12 +28,15 @@ class ProfessionalSite {
   final int? moderatedBy;
   final String moderatedByName;
   final int? ownerId;
+  final bool isProfessionalClaimed;
+  final String? subscriptionPlan;
   final double rating;
   final int totalReviews;
   final int freshnessScore;
   final int viewsCount;
   final int favoritesCount;
   final String coverPhoto;
+  final List<String> amenities;
   final String ownerName;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -41,13 +48,17 @@ class ProfessionalSite {
     required this.id,
     required this.name,
     required this.description,
+    required this.nameAr,
+    required this.descriptionAr,
     required this.categoryName,
     required this.categoryId,
+    required this.subcategory,
     required this.latitude,
     required this.longitude,
     required this.address,
     required this.city,
     required this.region,
+    required this.postalCode,
     required this.country,
     required this.phoneNumber,
     required this.email,
@@ -63,12 +74,15 @@ class ProfessionalSite {
     required this.moderatedBy,
     required this.moderatedByName,
     required this.ownerId,
+    required this.isProfessionalClaimed,
+    required this.subscriptionPlan,
     required this.rating,
     required this.totalReviews,
     required this.freshnessScore,
     required this.viewsCount,
     required this.favoritesCount,
     required this.coverPhoto,
+    required this.amenities,
     required this.ownerName,
     required this.createdAt,
     required this.updatedAt,
@@ -115,19 +129,51 @@ class ProfessionalSite {
     final moderatorFirstName = json['moderator_first_name'] as String? ?? '';
     final moderatorLastName = json['moderator_last_name'] as String? ?? '';
     final moderatedByName = '$moderatorFirstName $moderatorLastName'.trim();
+    List<String> parseAmenities(dynamic value) {
+      if (value is List) {
+        return value
+            .map((item) => '$item'.trim())
+            .where((item) => item.isNotEmpty)
+            .toList();
+      }
+
+      if (value is String && value.trim().isNotEmpty) {
+        final trimmed = value.trim();
+        if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+          final raw = trimmed.substring(1, trimmed.length - 1);
+          return raw
+              .split(',')
+              .map((item) => item.replaceAll('"', '').trim())
+              .where((item) => item.isNotEmpty)
+              .toList();
+        }
+
+        return trimmed
+            .split(',')
+            .map((item) => item.trim())
+            .where((item) => item.isNotEmpty)
+            .toList();
+      }
+
+      return const <String>[];
+    }
 
     return ProfessionalSite(
       id: '${json['id']}',
       name: json['name'] as String? ?? '',
       description: json['description'] as String? ?? '',
+      nameAr: json['name_ar'] as String? ?? '',
+      descriptionAr: json['description_ar'] as String? ?? '',
       categoryName:
           json['category_name'] as String? ?? json['category'] as String? ?? '',
       categoryId: parseNullableInt(json['category_id']),
+      subcategory: json['subcategory'] as String? ?? '',
       latitude: parseDouble(json['latitude']),
       longitude: parseDouble(json['longitude']),
       address: json['address'] as String? ?? '',
       city: json['city'] as String? ?? '',
       region: json['region'] as String? ?? '',
+      postalCode: json['postal_code'] as String? ?? '',
       country: json['country'] as String? ?? 'MA',
       phoneNumber: json['phone_number'] as String? ?? '',
       email: json['email'] as String? ?? '',
@@ -143,6 +189,8 @@ class ProfessionalSite {
       moderatedBy: parseNullableInt(json['moderated_by']),
       moderatedByName: moderatedByName,
       ownerId: parseNullableInt(json['owner_id']),
+      isProfessionalClaimed: parseBool(json['is_professional_claimed']),
+      subscriptionPlan: json['subscription_plan'] as String?,
       rating: parseDouble(json['average_rating'] ?? json['rating']),
       totalReviews: parseInt(json['total_reviews']),
       freshnessScore: parseInt(
@@ -151,6 +199,7 @@ class ProfessionalSite {
       viewsCount: parseInt(json['views_count']),
       favoritesCount: parseInt(json['favorites_count']),
       coverPhoto: json['cover_photo'] as String? ?? '',
+      amenities: parseAmenities(json['amenities']),
       ownerName: ownerName,
       createdAt: parseDate(json['created_at']),
       updatedAt: parseDate(json['updated_at']),

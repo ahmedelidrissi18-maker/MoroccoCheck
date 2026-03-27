@@ -1,94 +1,136 @@
 # MoroccoCheck Frontend
 
-Frontend Flutter de l'application MoroccoCheck, branché sur le backend local dans `../back-end`.
+Application Flutter du projet MoroccoCheck.
 
-## Etat actuel
+Elle couvre le parcours utilisateur principal:
 
-Le frontend est maintenant partiellement intégré au backend réel pour les flux principaux:
+- authentification
+- authentification Google mobile
+- consultation des sites
+- detail d un site
+- check-in GPS
+- publication d avis
+- profil, stats, badges et leaderboard
+- demande de passage `TOURIST -> CONTRIBUTOR`
+- espace professionnel de base
 
-- authentification: `register`, `login`, `auto-login`, `logout`
-- profil: données utilisateur, stats, badges, activité récente
-- sites: liste réelle, détail réel, avis réels, photos réelles
-- carte: markers basés sur les sites backend
-- check-in: payload compatible backend
-- review: payload texte compatible backend
-
-Fonctionnalité encore limitée:
-
-- upload de photo review: non activé côté backend, donc masqué côté frontend
-
-## Prérequis
+## Prerequis
 
 - Flutter stable
-- Dart compatible avec le projet
-- backend MoroccoCheck lancé localement
-- base de données importée et connectée côté backend
+- Dart compatible avec le SDK du projet
+- backend local demarre sur le port `5001`
 
-## Important: version SDK
+## SDK
 
-Le projet demande actuellement dans [pubspec.yaml](./pubspec.yaml):
+Le SDK declare est dans [pubspec.yaml](/C:/Users/User/App_Touriste/front-end/pubspec.yaml).
 
-```yaml
-environment:
-  sdk: ^3.10.8
-```
-
-Si ta machine est en `Dart 3.10.7`, alors:
-
-- `flutter pub get` échoue
-- `flutter analyze` échoue
-- `dart format` peut aussi échouer
-
-Solution recommandée:
-
-1. mettre à jour Flutter/Dart vers une version compatible
-2. relancer `flutter pub get`
-
-## Configuration backend locale
-
-Le frontend utilise automatiquement les URLs suivantes dans [app_constants.dart](./lib/core/constants/app_constants.dart):
-
-- Web / desktop: `http://127.0.0.1:5001/api`
-- Android emulator: `http://10.0.2.2:5001/api`
-
-Le backend doit donc être démarré sur le port `5001`.
-
-## Lancer le backend
-
-Depuis le dossier racine du projet:
-
-```bash
-cd back-end
-npm install
-npm test
-npm run dev
-```
-
-Vérifie ensuite:
-
-- `GET http://127.0.0.1:5001/api/health`
-- `GET http://127.0.0.1:5001/api/health/db`
-
-## Lancer le frontend
+Avant de travailler sur le front:
 
 ```bash
 cd front-end
 flutter pub get
-flutter run
+flutter analyze
 ```
 
-Exemples:
+## URL Backend
+
+La resolution des URLs est centralisee dans:
+
+- [app_constants.dart](/C:/Users/User/App_Touriste/front-end/lib/core/constants/app_constants.dart)
+
+Valeurs par defaut:
+
+- web / desktop: `http://127.0.0.1:5001/api`
+- emulateur Android: `http://10.0.2.2:5001/api`
+
+## Demarrage
 
 ```bash
-flutter run -d chrome
-flutter run -d emulator-5554
+cd front-end
+flutter pub get
+flutter run --flavor staging --dart-define=APP_ENV=development
 ```
 
-## Contrat API utilisé
+## Environnements Et Flavors
 
-Le frontend suppose le format backend suivant:
+Le mobile utilise maintenant les flavors Android:
 
-### Succès
+- `staging`
+- `production`
+
+Template de variables:
+
+- [front-end/.env.example](/C:/Users/User/App_Touriste/front-end/.env.example)
+
+Reference globale:
+
+- [ENVIRONMENTS.md](/C:/Users/User/App_Touriste/ENVIRONMENTS.md)
+
+### Google Sign-In Mobile
+
+Le login Google du front mobile utilise des `dart-define`:
+
+```bash
+flutter run \
+  --flavor staging \
+  --dart-define=APP_ENV=development \
+  --dart-define=GOOGLE_SERVER_CLIENT_ID=your-web-client-id.apps.googleusercontent.com \
+  --dart-define=GOOGLE_IOS_CLIENT_ID=your-ios-client-id.apps.googleusercontent.com
+```
+
+Notes:
+
+- Android: `GOOGLE_SERVER_CLIENT_ID` est requis pour recuperer le `idToken` envoye au backend
+- iOS: `GOOGLE_SERVER_CLIENT_ID` et `GOOGLE_IOS_CLIENT_ID` sont requis
+- le backend doit aussi accepter le client via `GOOGLE_CLIENT_IDS`
+
+Configuration detaillee du projet:
+
+- [GOOGLE_CLOUD_SETUP_MOBILE.md](/C:/Users/User/App_Touriste/GOOGLE_CLOUD_SETUP_MOBILE.md)
+
+### Chrome / Web
+
+Sur cette machine, le lancement web le plus fiable est:
+
+```bash
+flutter run -d chrome --web-port 3001 --no-web-resources-cdn
+```
+
+Script equivalent:
+
+```powershell
+.\start-web-local.ps1
+```
+
+Depuis la racine, il existe aussi:
+
+```powershell
+.\start-app.ps1
+```
+
+## Flux Supportes
+
+- inscription
+- connexion
+- auto-login
+- logout
+- consultation du profil
+- mise a jour du profil
+- affichage des stats
+- affichage des badges
+- affichage du leaderboard
+- liste des sites
+- detail d un site
+- avis d un site
+- photos d un site
+- creation d un check-in
+- creation d un avis
+- affichage du statut contributor
+- envoi d une demande contributor
+
+## Contrat API Attendu
+
+### Succes
 
 ```json
 {
@@ -123,65 +165,38 @@ Le frontend suppose le format backend suivant:
 }
 ```
 
-## Endpoints déjà branchés
+## Fichiers Cles
 
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `GET /api/auth/profile`
-- `POST /api/auth/logout`
-- `GET /api/sites`
-- `GET /api/sites/:id`
-- `GET /api/sites/:id/reviews`
-- `GET /api/sites/:id/photos`
-- `POST /api/checkins`
-- `POST /api/reviews`
-- `GET /api/users/me/stats`
-- `GET /api/users/me/badges`
+- [api_service.dart](/C:/Users/User/App_Touriste/front-end/lib/core/network/api_service.dart)
+- [app_constants.dart](/C:/Users/User/App_Touriste/front-end/lib/core/constants/app_constants.dart)
+- [auth_provider.dart](/C:/Users/User/App_Touriste/front-end/lib/features/auth/presentation/auth_provider.dart)
+- [sites_provider.dart](/C:/Users/User/App_Touriste/front-end/lib/features/sites/presentation/sites_provider.dart)
+- [site_detail_screen.dart](/C:/Users/User/App_Touriste/front-end/lib/features/sites/presentation/site_detail_screen.dart)
+- [checkin_screen.dart](/C:/Users/User/App_Touriste/front-end/lib/features/sites/presentation/checkin_screen.dart)
+- [profile_screen.dart](/C:/Users/User/App_Touriste/front-end/lib/features/profile/presentation/profile_screen.dart)
 
-## Fichiers clés
-
-- [lib/core/network/api_service.dart](./lib/core/network/api_service.dart)
-- [lib/core/constants/app_constants.dart](./lib/core/constants/app_constants.dart)
-- [lib/features/auth/data/auth_remote_datasource.dart](./lib/features/auth/data/auth_remote_datasource.dart)
-- [lib/features/sites/presentation/sites_provider.dart](./lib/features/sites/presentation/sites_provider.dart)
-- [lib/features/sites/presentation/site_detail_screen.dart](./lib/features/sites/presentation/site_detail_screen.dart)
-- [lib/features/map/presentation/map_screen.dart](./lib/features/map/presentation/map_screen.dart)
-- [lib/features/profile/presentation/profile_screen.dart](./lib/features/profile/presentation/profile_screen.dart)
-
-## Limitations connues
-
-- l'environnement Flutter local peut être bloqué par la version SDK
-- l'upload de photo pour les avis n'est pas encore disponible côté backend
-- il reste des améliorations de qualité à faire:
-  - analyse statique
-  - tests Flutter
-  - documentation écran par écran
-
-## Vérifications recommandées
-
-Après mise à jour du SDK Flutter/Dart:
+## Verification Recommandee
 
 ```bash
 flutter pub get
 flutter analyze
 flutter test
+flutter build apk --flavor staging --dart-define=APP_ENV=staging
 ```
 
-Puis vérifier manuellement:
+Puis verifier manuellement:
 
 1. inscription
 2. connexion
-3. ouverture de la liste des sites
-4. ouverture du détail d'un site
-5. ajout d'un check-in
-6. ajout d'un avis texte
-7. consultation du profil, badges et stats
+3. liste des sites
+4. detail d un site
+5. check-in
+6. avis
+7. profil
+8. demande contributor
 
-## Suite logique
+## Limites Actuelles
 
-Les prochaines étapes recommandées sont:
-
-1. rétablir un environnement Flutter compatible pour relancer `analyze` et `test`
-2. ajouter une vraie gestion du refresh token
-3. brancher l'upload photo review quand le backend exposera la route
-4. compléter la documentation fonctionnelle et les tests widget
+- la publication mobile store n est pas encore preparee
+- certains tests Flutter restent a completer
+- les environnements `staging/prod` doivent encore etre formalises

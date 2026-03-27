@@ -25,6 +25,7 @@ SELECT 'Fast Food', 'Wajabat Saria', id, 2 FROM categories WHERE name = 'Restaur
 INSERT INTO categories (name, name_ar, parent_id, display_order)
 SELECT 'Cafe', 'Maqha', id, 3 FROM categories WHERE name = 'Restaurant';
 
+-- Seeded credentials for demo accounts: password123
 -- Insert admin user
 INSERT INTO users (
     email, password_hash, first_name, last_name,
@@ -32,7 +33,7 @@ INSERT INTO users (
     points, level, rank
 ) VALUES (
     'admin@moroccocheck.com',
-    '$2b$10$XqJnXQJn.wKXq4H8KXq4H8KXq4H8KXq4H8KXq4H8KXq4H8KXq4H',
+    '$2b$10$bVVVK69jU3YmTlUumt5e9eXnzYGGHWdNt4THtjeqU5P0nmDoWWYzy',
     'Admin',
     'MoroccoCheck',
     'ADMIN',
@@ -50,7 +51,7 @@ INSERT INTO users (
     points, level, rank
 ) VALUES (
     'contributor@test.com',
-    '$2b$10$XqJnXQJn.wKXq4H8KXq4H8KXq4H8KXq4H8KXq4H8KXq4H8KXq4H',
+    '$2b$10$bVVVK69jU3YmTlUumt5e9eXnzYGGHWdNt4THtjeqU5P0nmDoWWYzy',
     'Ahmed',
     'Benali',
     'CONTRIBUTOR',
@@ -68,7 +69,7 @@ INSERT INTO users (
     points, level, rank
 ) VALUES (
     'pro@test.com',
-    '$2b$10$XqJnXQJn.wKXq4H8KXq4H8KXq4H8KXq4H8KXq4H8KXq4H8KXq4H',
+    '$2b$10$bVVVK69jU3YmTlUumt5e9eXnzYGGHWdNt4THtjeqU5P0nmDoWWYzy',
     'Fatima',
     'Alami',
     'PROFESSIONAL',

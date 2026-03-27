@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
@@ -111,6 +112,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                       position: index + 1,
                       entry: user,
                       isCurrentUser: currentUserId == user.id,
+                      onTap: () => context.push('/users/${user.id}'),
                     );
                   }),
                   if (_error != null)
@@ -216,69 +218,73 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: entry == null
                     ? const SizedBox.shrink()
-                    : Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          CircleAvatar(
-                            radius: index == 1 ? 28 : 23,
-                            backgroundColor: colors[index].withValues(
-                              alpha: 0.15,
+                    : InkWell(
+                        borderRadius: BorderRadius.circular(18),
+                        onTap: () => context.push('/users/${entry.id}'),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            CircleAvatar(
+                              radius: index == 1 ? 28 : 23,
+                              backgroundColor: colors[index].withValues(
+                                alpha: 0.15,
+                              ),
+                              backgroundImage:
+                                  entry.profilePicture != null &&
+                                      entry.profilePicture!.isNotEmpty
+                                  ? NetworkImage(entry.profilePicture!)
+                                  : null,
+                              child:
+                                  entry.profilePicture == null ||
+                                      entry.profilePicture!.isEmpty
+                                  ? Icon(Icons.person, color: colors[index])
+                                  : null,
                             ),
-                            backgroundImage:
-                                entry.profilePicture != null &&
-                                    entry.profilePicture!.isNotEmpty
-                                ? NetworkImage(entry.profilePicture!)
-                                : null,
-                            child:
-                                entry.profilePicture == null ||
-                                    entry.profilePicture!.isEmpty
-                                ? Icon(Icons.person, color: colors[index])
-                                : null,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            entry.displayName,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                            style: AppTextStyles.caption.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            height: heights[index],
-                            decoration: BoxDecoration(
-                              color: colors[index],
-                              borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(18),
+                            const SizedBox(height: 8),
+                            Text(
+                              entry.displayName,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: AppTextStyles.caption.copyWith(
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    labels[index],
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
+                            const SizedBox(height: 8),
+                            Container(
+                              height: heights[index],
+                              decoration: BoxDecoration(
+                                color: colors[index],
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(18),
+                                ),
+                              ),
+                              child: Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      labels[index],
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    '${entry.points} pts',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      '${entry.points} pts',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
               ),
             );
@@ -324,11 +330,13 @@ class _LeaderboardTile extends StatelessWidget {
   final int position;
   final LeaderboardEntry entry;
   final bool isCurrentUser;
+  final VoidCallback onTap;
 
   const _LeaderboardTile({
     required this.position,
     required this.entry,
     required this.isCurrentUser,
+    required this.onTap,
   });
 
   @override
@@ -337,6 +345,7 @@ class _LeaderboardTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       color: isCurrentUser ? const Color(0xFFEFF6FF) : null,
       child: ListTile(
+        onTap: onTap,
         leading: CircleAvatar(
           backgroundColor: isCurrentUser
               ? AppColors.primary.withValues(alpha: 0.16)

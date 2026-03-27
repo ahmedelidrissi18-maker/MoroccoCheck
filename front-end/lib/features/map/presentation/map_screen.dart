@@ -40,7 +40,11 @@ class _MapScreenState extends State<MapScreen> {
       final sitesProvider = context.read<SitesProvider>();
 
       await mapProvider.getUserLocation();
-      await sitesProvider.getSites();
+      final position = mapProvider.currentPosition;
+      await sitesProvider.getSites(
+        latitude: position?.latitude,
+        longitude: position?.longitude,
+      );
     });
   }
 
@@ -124,6 +128,10 @@ class _MapScreenState extends State<MapScreen> {
     final position = mapProvider.currentPosition;
     if (position != null) {
       _mapController.move(LatLng(position.latitude, position.longitude), 15);
+      await context.read<SitesProvider>().getSites(
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
     }
   }
 
@@ -256,22 +264,32 @@ class _MapScreenState extends State<MapScreen> {
                     ),
                   ),
                 ),
-              Positioned(
-                left: 12,
-                right: 82,
-                bottom: 20,
-                child: _buildSummaryBar(
-                  visibleSites,
-                  sitesProvider.sites.length,
-                ),
-              ),
-              Positioned(
-                right: 20,
-                bottom: 20,
-                child: FloatingActionButton(
-                  onPressed: _centerOnUserLocation,
-                  backgroundColor: AppColors.primary,
-                  child: const Icon(Icons.my_location, color: Colors.white),
+              SafeArea(
+                minimum: const EdgeInsets.fromLTRB(12, 0, 12, 20),
+                child: Stack(
+                  children: [
+                    Positioned(
+                      left: 0,
+                      right: 92,
+                      bottom: 0,
+                      child: _buildSummaryBar(
+                        visibleSites,
+                        sitesProvider.sites.length,
+                      ),
+                    ),
+                    Positioned(
+                      right: 8,
+                      bottom: 0,
+                      child: FloatingActionButton(
+                        onPressed: _centerOnUserLocation,
+                        backgroundColor: AppColors.primary,
+                        child: const Icon(
+                          Icons.my_location,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -285,58 +303,71 @@ class _MapScreenState extends State<MapScreen> {
     final subcategoryOptions = sitesProvider.getSubcategoryOptionsFor(
       _selectedCategoryId,
     );
+    final screenHeight = MediaQuery.of(context).size.height;
 
-    return Positioned(
-      top: 12,
-      left: 12,
-      right: 12,
-      child: Card(
-        margin: EdgeInsets.zero,
-        color: AppColors.surface.withValues(alpha: 0.96),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+    return SafeArea(
+      minimum: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 720,
+            maxHeight: screenHeight * 0.34,
+          ),
+          child: Card(
+            margin: EdgeInsets.zero,
+            clipBehavior: Clip.antiAlias,
+            color: AppColors.surface.withValues(alpha: 0.97),
+            elevation: 6,
+            shadowColor: Colors.black.withValues(alpha: 0.12),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.tune, color: AppColors.primary, size: 18),
-                  const SizedBox(width: 8),
-                  Text('Filtres de voyage', style: AppTextStyles.bodyStrong),
-                  const Spacer(),
-                  if (_selectedCategoryId != null ||
-                      _selectedSubcategoryId != null ||
-                      (_selectedLegacySubcategory != null &&
-                          _selectedLegacySubcategory!.isNotEmpty) ||
-                      _freshnessFilter != _FreshnessFilter.all)
-                    TextButton(
-                      onPressed: _resetFilters,
-                      child: const Text('Effacer'),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 40,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    _buildCategoryChip(
-                      'Toutes',
-                      _selectedCategoryId == null,
-                      () {
-                        setState(() {
-                          _selectedCategoryId = null;
-                          _selectedSubcategoryId = null;
-                          _selectedLegacySubcategory = null;
-                        });
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    ...sitesProvider.topLevelCategories.map(
-                      (SiteCategory category) => Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: _buildCategoryChip(
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.tune,
+                        color: AppColors.primary,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Filtres de voyage',
+                          style: AppTextStyles.bodyStrong,
+                        ),
+                      ),
+                      if (_selectedCategoryId != null ||
+                          _selectedSubcategoryId != null ||
+                          (_selectedLegacySubcategory != null &&
+                              _selectedLegacySubcategory!.isNotEmpty) ||
+                          _freshnessFilter != _FreshnessFilter.all)
+                        TextButton(
+                          onPressed: _resetFilters,
+                          child: const Text('Effacer'),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildCategoryChip(
+                        'Toutes',
+                        _selectedCategoryId == null,
+                        () {
+                          setState(() {
+                            _selectedCategoryId = null;
+                            _selectedSubcategoryId = null;
+                            _selectedLegacySubcategory = null;
+                          });
+                        },
+                      ),
+                      ...sitesProvider.topLevelCategories.map(
+                        (SiteCategory category) => _buildCategoryChip(
                           category.name,
                           _selectedCategoryId == category.id,
                           () {
@@ -348,17 +379,22 @@ class _MapScreenState extends State<MapScreen> {
                           },
                         ),
                       ),
+                    ],
+                  ),
+                  if (_selectedCategoryId != null &&
+                      subcategoryOptions.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      'Sous-categories',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textMuted,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ],
-                ),
-              ),
-              if (_selectedCategoryId != null && subcategoryOptions.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: SizedBox(
-                    height: 40,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
                         _buildCategoryChip(
                           'Toutes sous-categories',
@@ -372,90 +408,86 @@ class _MapScreenState extends State<MapScreen> {
                             });
                           },
                         ),
-                        const SizedBox(width: 8),
                         ...subcategoryOptions.map(
-                          (SiteSubcategoryOption option) => Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: _buildCategoryChip(
-                              option.label,
-                              option.id != null
-                                  ? _selectedSubcategoryId == option.id
-                                  : _selectedSubcategoryId == null &&
-                                        _selectedLegacySubcategory
-                                                ?.toLowerCase() ==
-                                            option.legacyValue?.toLowerCase(),
-                              () {
-                                setState(() {
-                                  _selectedSubcategoryId = option.id;
-                                  _selectedLegacySubcategory =
-                                      option.legacyValue;
-                                });
-                              },
-                            ),
+                          (SiteSubcategoryOption option) => _buildCategoryChip(
+                            option.label,
+                            option.id != null
+                                ? _selectedSubcategoryId == option.id
+                                : _selectedSubcategoryId == null &&
+                                      _selectedLegacySubcategory
+                                              ?.toLowerCase() ==
+                                          option.legacyValue?.toLowerCase(),
+                            () {
+                              setState(() {
+                                _selectedSubcategoryId = option.id;
+                                _selectedLegacySubcategory = option.legacyValue;
+                              });
+                            },
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ),
-              if (sitesProvider.availableCategories.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    'Categories backend indisponibles pour le moment.',
-                    style: AppTextStyles.caption.copyWith(
-                      color: Colors.grey[600],
+                  ],
+                  if (sitesProvider.availableCategories.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        'Categories backend indisponibles pour le moment.',
+                        style: AppTextStyles.caption.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _buildFreshnessChip(
-                    label: 'Tous',
-                    color: Colors.grey,
-                    selected: _freshnessFilter == _FreshnessFilter.all,
-                    onTap: () {
-                      setState(() {
-                        _freshnessFilter = _FreshnessFilter.all;
-                      });
-                    },
-                  ),
-                  _buildFreshnessChip(
-                    label: 'Frais',
-                    color: AppColors.freshnessGreen,
-                    selected: _freshnessFilter == _FreshnessFilter.fresh,
-                    onTap: () {
-                      setState(() {
-                        _freshnessFilter = _FreshnessFilter.fresh;
-                      });
-                    },
-                  ),
-                  _buildFreshnessChip(
-                    label: 'Moyen',
-                    color: AppColors.freshnessOrange,
-                    selected: _freshnessFilter == _FreshnessFilter.moderate,
-                    onTap: () {
-                      setState(() {
-                        _freshnessFilter = _FreshnessFilter.moderate;
-                      });
-                    },
-                  ),
-                  _buildFreshnessChip(
-                    label: 'A verifier',
-                    color: AppColors.freshnessRed,
-                    selected: _freshnessFilter == _FreshnessFilter.stale,
-                    onTap: () {
-                      setState(() {
-                        _freshnessFilter = _FreshnessFilter.stale;
-                      });
-                    },
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildFreshnessChip(
+                        label: 'Tous',
+                        color: Colors.grey,
+                        selected: _freshnessFilter == _FreshnessFilter.all,
+                        onTap: () {
+                          setState(() {
+                            _freshnessFilter = _FreshnessFilter.all;
+                          });
+                        },
+                      ),
+                      _buildFreshnessChip(
+                        label: 'Frais',
+                        color: AppColors.freshnessGreen,
+                        selected: _freshnessFilter == _FreshnessFilter.fresh,
+                        onTap: () {
+                          setState(() {
+                            _freshnessFilter = _FreshnessFilter.fresh;
+                          });
+                        },
+                      ),
+                      _buildFreshnessChip(
+                        label: 'Moyen',
+                        color: AppColors.freshnessOrange,
+                        selected: _freshnessFilter == _FreshnessFilter.moderate,
+                        onTap: () {
+                          setState(() {
+                            _freshnessFilter = _FreshnessFilter.moderate;
+                          });
+                        },
+                      ),
+                      _buildFreshnessChip(
+                        label: 'A verifier',
+                        color: AppColors.freshnessRed,
+                        selected: _freshnessFilter == _FreshnessFilter.stale,
+                        onTap: () {
+                          setState(() {
+                            _freshnessFilter = _FreshnessFilter.stale;
+                          });
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -531,6 +563,7 @@ class _MapScreenState extends State<MapScreen> {
 
     return Card(
       margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
       color: AppColors.surface.withValues(alpha: 0.96),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

@@ -12,6 +12,10 @@ class StorageService {
   // Storage instances
   late final FlutterSecureStorage _secureStorage;
   late SharedPreferences _prefs;
+  bool _isInitialized = false;
+  final ValueNotifier<String> preferredLanguageNotifier = ValueNotifier<String>(
+    'fr',
+  );
 
   // Storage keys
   static const String _tokenKey = 'jwt_token';
@@ -25,6 +29,17 @@ class StorageService {
       'settings_precise_location_enabled';
   static const String _technicalInfoVisibleKey =
       'settings_technical_info_visible';
+  static const String _apiBaseUrlKey = 'settings_api_base_url';
+  static const String _biometricAuthEnabledKey =
+      'settings_biometric_auth_enabled';
+  static const String _dailyReminderEnabledKey =
+      'settings_daily_reminder_enabled';
+  static const String _dailyReminderHourKey = 'settings_daily_reminder_hour';
+  static const Set<String> _supportedLanguageCodes = <String>{
+    'fr',
+    'ar',
+    'en',
+  };
 
   // Initialize storage
   Future<void> init() async {
@@ -33,12 +48,17 @@ class StorageService {
       iOptions: IOSOptions(),
     );
     _prefs = await SharedPreferences.getInstance();
+    preferredLanguageNotifier.value = getPreferredLanguage();
+    _isInitialized = true;
   }
+
+  bool get isInitialized => _isInitialized;
 
   // ==================== JWT Token Methods (Secure Storage) ====================
 
   /// Save JWT token securely
   Future<bool> saveToken(String token) async {
+    if (!_isInitialized) return false;
     try {
       await _secureStorage.write(key: _tokenKey, value: token);
       await _prefs.setBool(_isLoggedInKey, true);
@@ -51,6 +71,7 @@ class StorageService {
 
   /// Get JWT token
   Future<String?> getToken() async {
+    if (!_isInitialized) return null;
     try {
       return await _secureStorage.read(key: _tokenKey);
     } catch (e) {
@@ -61,6 +82,7 @@ class StorageService {
 
   /// Save refresh token securely
   Future<bool> saveRefreshToken(String refreshToken) async {
+    if (!_isInitialized) return false;
     try {
       await _secureStorage.write(key: _refreshTokenKey, value: refreshToken);
       return true;
@@ -72,6 +94,7 @@ class StorageService {
 
   /// Get refresh token
   Future<String?> getRefreshToken() async {
+    if (!_isInitialized) return null;
     try {
       return await _secureStorage.read(key: _refreshTokenKey);
     } catch (e) {
@@ -82,6 +105,7 @@ class StorageService {
 
   /// Delete JWT token
   Future<bool> deleteToken() async {
+    if (!_isInitialized) return false;
     try {
       await _secureStorage.delete(key: _tokenKey);
       await _secureStorage.delete(key: _refreshTokenKey);
@@ -97,6 +121,7 @@ class StorageService {
 
   /// Save user data as JSON
   Future<bool> saveUserData(Map<String, dynamic> userData) async {
+    if (!_isInitialized) return false;
     try {
       final jsonString = jsonEncode(userData);
       await _prefs.setString(_userDataKey, jsonString);
@@ -109,6 +134,7 @@ class StorageService {
 
   /// Get user data as Map
   Future<Map<String, dynamic>?> getUserData() async {
+    if (!_isInitialized) return null;
     try {
       final jsonString = _prefs.getString(_userDataKey);
       if (jsonString == null) return null;
@@ -145,6 +171,7 @@ class StorageService {
 
   /// Delete user data
   Future<bool> deleteUserData() async {
+    if (!_isInitialized) return false;
     try {
       await _prefs.remove(_userDataKey);
       return true;
@@ -157,10 +184,12 @@ class StorageService {
   // ==================== Authentication State Methods ====================
 
   /// Check if user is logged in
-  bool get isLoggedIn => _prefs.getBool(_isLoggedInKey) ?? false;
+  bool get isLoggedIn =>
+      _isInitialized ? (_prefs.getBool(_isLoggedInKey) ?? false) : false;
 
   /// Set login state
   Future<bool> setLoggedIn(bool value) async {
+    if (!_isInitialized) return false;
     try {
       await _prefs.setBool(_isLoggedInKey, value);
       return true;
@@ -174,6 +203,7 @@ class StorageService {
 
   /// Clear all stored data (use on logout)
   Future<bool> clearAll() async {
+    if (!_isInitialized) return false;
     try {
       // Clear secure storage (tokens)
       await _secureStorage.deleteAll();
@@ -193,6 +223,7 @@ class StorageService {
 
   /// Save generic string value
   Future<bool> saveString(String key, String value) async {
+    if (!_isInitialized) return false;
     try {
       await _prefs.setString(key, value);
       return true;
@@ -204,6 +235,7 @@ class StorageService {
 
   /// Get generic string value
   String? getString(String key) {
+    if (!_isInitialized) return null;
     try {
       return _prefs.getString(key);
     } catch (e) {
@@ -214,6 +246,7 @@ class StorageService {
 
   /// Save generic bool value
   Future<bool> saveBool(String key, bool value) async {
+    if (!_isInitialized) return false;
     try {
       await _prefs.setBool(key, value);
       return true;
@@ -225,6 +258,7 @@ class StorageService {
 
   /// Get generic bool value
   bool? getBool(String key) {
+    if (!_isInitialized) return null;
     try {
       return _prefs.getBool(key);
     } catch (e) {
@@ -235,6 +269,7 @@ class StorageService {
 
   /// Save generic int value
   Future<bool> saveInt(String key, int value) async {
+    if (!_isInitialized) return false;
     try {
       await _prefs.setInt(key, value);
       return true;
@@ -246,6 +281,7 @@ class StorageService {
 
   /// Get generic int value
   int? getInt(String key) {
+    if (!_isInitialized) return null;
     try {
       return _prefs.getInt(key);
     } catch (e) {
@@ -256,6 +292,7 @@ class StorageService {
 
   /// Remove a specific key
   Future<bool> remove(String key) async {
+    if (!_isInitialized) return false;
     try {
       await _prefs.remove(key);
       return true;
@@ -267,17 +304,25 @@ class StorageService {
 
   /// Check if a key exists
   bool containsKey(String key) {
+    if (!_isInitialized) {
+      return false;
+    }
     return _prefs.containsKey(key);
   }
 
   // ==================== App Preferences ====================
 
   Future<bool> savePreferredLanguage(String value) async {
-    return saveString(_preferredLanguageKey, value);
+    final normalized = _normalizeLanguageCode(value);
+    final saved = await saveString(_preferredLanguageKey, normalized);
+    if (saved) {
+      preferredLanguageNotifier.value = normalized;
+    }
+    return saved;
   }
 
   String getPreferredLanguage() {
-    return getString(_preferredLanguageKey) ?? 'fr';
+    return _normalizeLanguageCode(getString(_preferredLanguageKey));
   }
 
   Future<bool> saveNotificationsEnabled(bool value) async {
@@ -304,10 +349,69 @@ class StorageService {
     return getBool(_technicalInfoVisibleKey) ?? false;
   }
 
+  Future<bool> saveApiBaseUrl(String value) async {
+    return saveString(_apiBaseUrlKey, value);
+  }
+
+  String? getApiBaseUrl() {
+    final value = getString(_apiBaseUrlKey)?.trim();
+    if (value == null || value.isEmpty) {
+      return null;
+    }
+    return value;
+  }
+
+  Future<bool> clearApiBaseUrl() async {
+    return remove(_apiBaseUrlKey);
+  }
+
+  Future<bool> saveBiometricAuthEnabled(bool value) async {
+    return saveBool(_biometricAuthEnabledKey, value);
+  }
+
+  bool getBiometricAuthEnabled() {
+    return getBool(_biometricAuthEnabledKey) ?? false;
+  }
+
+  Future<bool> saveDailyReminderEnabled(bool value) async {
+    return saveBool(_dailyReminderEnabledKey, value);
+  }
+
+  bool getDailyReminderEnabled() {
+    return getBool(_dailyReminderEnabledKey) ?? true;
+  }
+
+  Future<bool> saveDailyReminderHour(int value) async {
+    return saveInt(_dailyReminderHourKey, value);
+  }
+
+  int getDailyReminderHour() {
+    return getInt(_dailyReminderHourKey) ?? 19;
+  }
+
   Future<void> resetAppPreferences() async {
     await remove(_preferredLanguageKey);
     await remove(_notificationsEnabledKey);
     await remove(_preciseLocationEnabledKey);
     await remove(_technicalInfoVisibleKey);
+    await remove(_apiBaseUrlKey);
+    await remove(_biometricAuthEnabledKey);
+    await remove(_dailyReminderEnabledKey);
+    await remove(_dailyReminderHourKey);
+    preferredLanguageNotifier.value = 'fr';
+  }
+
+  String _normalizeLanguageCode(String? value) {
+    final normalized = (value ?? '').trim().toLowerCase();
+    if (_supportedLanguageCodes.contains(normalized)) {
+      return normalized;
+    }
+
+    final baseLanguage = normalized.split(RegExp('[-_]')).first;
+    if (_supportedLanguageCodes.contains(baseLanguage)) {
+      return baseLanguage;
+    }
+
+    return 'fr';
   }
 }

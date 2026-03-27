@@ -1,0 +1,116 @@
+@startuml use_case_professionnel
+!define PROFESSIONAL_COLOR #9B59B6
+!define PRIMARY_COLOR #3498DB
+!define PREMIUM_COLOR #E67E22
+
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam defaultFontName Arial
+
+skinparam actor {
+    BackgroundColor PROFESSIONAL_COLOR
+    BorderColor #2C3E50
+}
+
+skinparam usecase {
+    BackgroundColor #FFFFFF
+    BorderColor #2C3E50
+    ArrowColor #2C3E50
+}
+
+left to right direction
+
+actor "🟣 Professionnel" as Professionnel #9B59B6
+
+rectangle "Système MoroccoCheck" {
+    
+    package "Module Authentification" #F8F9FA {
+        usecase "CU02\nSe connecter" as CU02
+    }
+    
+    package "Module Gestion Établissement" #F3E5F5 {
+        usecase "CU18\nGérer son\nétablissement" as CU18 #9B59B6
+        usecase "Modifier\ninformations" as ModifInfo
+        usecase "Gérer horaires\net prix" as GererHoraires
+        usecase "Gérer les photos\n(max 20)" as GererPhotos
+        usecase "Consulter\ndashboard" as Dashboard
+    }
+    
+    package "Module Analytics" #E3F2FD {
+        usecase "CU19\nConsulter les analytics\nde l'établissement" as CU19 #3498DB
+    }
+    
+    package "Module Interaction Client" #E8F5E9 {
+        usecase "CU20\nRépondre à un\navis client" as CU20
+    }
+    
+    package "Module Abonnement" #FFF3E0 {
+        usecase "CU21\nS'abonner à un\nplan professionnel" as CU21
+        usecase "CU22\nCréer une promotion\nou offre spéciale" as CU22
+    }
+}
+
+actor "💳 Stripe" as Stripe #9B59B6
+actor "🔔 Firebase FCM" as Firebase #FFA726
+
+' Relations Professionnel
+Professionnel --> CU02
+Professionnel --> CU18
+Professionnel --> CU19
+Professionnel --> CU20
+Professionnel --> CU21
+Professionnel --> CU22
+
+' Relations include pour CU18
+CU18 ..> ModifInfo : <<include>>
+CU18 ..> GererHoraires : <<include>>
+CU18 ..> GererPhotos : <<include>>
+CU18 ..> Dashboard : <<include>>
+
+' Relations extend
+CU22 .> CU21 : <<extend>>
+
+' Relations avec systèmes externes
+CU21 ..> Stripe : <<use>>
+CU20 ..> Firebase : <<use>>
+CU22 ..> Firebase : <<use>>
+
+note right of Professionnel
+  **Type:** Propriétaire d'établissement
+  
+  **Plans disponibles:**
+  
+  📦 **Basic** (Gratuit)
+  • Gestion basique
+  • Stats limitées
+  
+  ⭐ **Pro** (29€/mois)
+  • Analytics avancés
+  • Réponse aux avis
+  • Promotions
+  
+  💎 **Premium** (99€/mois)
+  • Toutes fonctionnalités
+  • Support dédié
+  • Priorité affichage
+end note
+
+note bottom of Stripe
+  **Paiement sécurisé**
+  ✓ PCI DSS compliant
+  ✓ Webhooks signés
+  ✓ Renouvellement auto
+  ✓ Annulation à tout moment
+end note
+
+note bottom of CU19
+  **Analytics disponibles:**
+  📊 Vues profil
+  📈 Check-ins
+  ⭐ Évaluations
+  📸 Photos vues
+  💹 Tendances
+end note
+
+@enduml

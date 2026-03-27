@@ -1,25 +1,53 @@
-import { paginatedResponse, successResponse } from '../utils/response.utils.js';
+import {
+  paginatedResponse,
+  successResponse,
+  validationErrorResponse
+} from '../utils/response.utils.js';
 import { validateRequest, checkinSchema } from '../utils/validators.js';
+import { normalizeUploadedCheckinPhotos } from '../middleware/upload.middleware.js';
 import {
   createCheckin,
   listCheckins,
   getCheckinById
 } from '../services/checkin.service.js';
 
-const formatValidationError = (error) => ({
-  success: false,
-  message: 'Validation echouee',
-  errors: error.details.map((detail) => detail.message)
-});
+const normalizeCheckinPayload = (body = {}, uploadedPhotos = []) => {
+  const payload = { ...body };
+
+  if (typeof payload.has_photo === 'string') {
+    payload.has_photo = ['true', '1', 'yes', 'on'].includes(
+      payload.has_photo.trim().toLowerCase()
+    );
+  }
+
+  if (typeof payload.device_info === 'string' && payload.device_info.trim()) {
+    try {
+      payload.device_info = JSON.parse(payload.device_info);
+    } catch (_error) {
+      payload.device_info = undefined;
+    }
+  }
+
+  if (uploadedPhotos.length) {
+    payload.has_photo = true;
+  }
+
+  return payload;
+};
 
 export const createCheckinHandler = async (req, res) => {
-  const { error, value } = validateRequest(checkinSchema, req.body);
+  const uploadedPhotos = normalizeUploadedCheckinPhotos(req.files || []);
+  const { error, value } = validateRequest(
+    checkinSchema,
+    normalizeCheckinPayload(req.body, uploadedPhotos)
+  );
   if (error) {
-    return res.status(400).json(formatValidationError(error));
+    return validationErrorResponse(res, error);
   }
 
   const result = await createCheckin(value, req.user, {
-    ipAddress: req.ip
+    ipAddress: req.ip,
+    uploadedPhotos
   });
   return successResponse(res, result, 'Check-in enregistre avec succes', 201);
 };

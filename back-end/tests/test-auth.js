@@ -18,6 +18,7 @@ const TEST_EMAILS = [
 describe('Authentication API', function () {
   let app;
   let authToken;
+  let refreshToken;
   let dbReady = false;
   let schemaReady = false;
 
@@ -30,7 +31,11 @@ describe('Authentication API', function () {
 
   before(async function () {
     dbReady = await isDatabaseAvailable();
-    schemaReady = await hasTable('users');
+    const requiredTables = await Promise.all([
+      hasTable('users'),
+      hasTable('sessions')
+    ]);
+    schemaReady = requiredTables.every(Boolean);
     if (!dbReady || !schemaReady) {
       this.skip();
     }
@@ -60,6 +65,7 @@ describe('Authentication API', function () {
         message: 'Inscription reussie'
       });
       expect(response.body.data.token).to.be.a('string');
+      expect(response.body.data.refresh_token).to.be.a('string');
       expect(response.body.data.user).to.include({
         first_name: testUser.first_name,
         last_name: testUser.last_name,
@@ -72,6 +78,7 @@ describe('Authentication API', function () {
       });
 
       authToken = response.body.data.token;
+      refreshToken = response.body.data.refresh_token;
     });
 
     it('should reject duplicate email', async function () {
@@ -99,7 +106,9 @@ describe('Authentication API', function () {
 
       expect(response.body.success).to.equal(false);
       expect(response.body.message).to.equal('Validation echouee');
+      expect(response.body.code).to.equal('VALIDATION_ERROR');
       expect(response.body.errors).to.be.an('array').that.is.not.empty;
+      expect(response.body.details.validation).to.be.an('array').that.is.not.empty;
     });
   });
 
@@ -119,6 +128,9 @@ describe('Authentication API', function () {
       });
       expect(response.body.data.user.email).to.equal(testUser.email);
       expect(response.body.data.user).to.not.have.property('password_hash');
+      expect(response.body.data.refresh_token).to.be.a('string');
+      authToken = response.body.data.token;
+      refreshToken = response.body.data.refresh_token;
     });
 
     it('should reject invalid credentials', async function () {
@@ -131,6 +143,43 @@ describe('Authentication API', function () {
         .expect(401);
 
       expect(response.body.message).to.equal('Email ou mot de passe incorrect');
+    });
+  });
+
+  describe('POST /api/auth/refresh', function () {
+    it('should rotate access and refresh tokens', async function () {
+      const oldAccessToken = authToken;
+      const oldRefreshToken = refreshToken;
+
+      const response = await request(app)
+        .post('/api/auth/refresh')
+        .send({
+          refresh_token: oldRefreshToken
+        })
+        .expect(200);
+
+      expect(response.body.success).to.equal(true);
+      expect(response.body.data.token).to.be.a('string');
+      expect(response.body.data.refresh_token).to.be.a('string');
+      expect(response.body.data.token).to.not.equal(oldAccessToken);
+      expect(response.body.data.refresh_token).to.not.equal(oldRefreshToken);
+
+      authToken = response.body.data.token;
+      refreshToken = response.body.data.refresh_token;
+
+      const oldTokenResponse = await request(app)
+        .get('/api/auth/profile')
+        .set('Authorization', `Bearer ${oldAccessToken}`)
+        .expect(401);
+
+      expect(oldTokenResponse.body.code).to.equal('SESSION_INACTIVE');
+
+      const newTokenResponse = await request(app)
+        .get('/api/auth/profile')
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(newTokenResponse.body.success).to.equal(true);
     });
   });
 
@@ -184,6 +233,25 @@ describe('Authentication API', function () {
         .expect(400);
 
       expect(response.body.message).to.equal('Aucun champ a mettre a jour fourni');
+    });
+  });
+
+  describe('POST /api/auth/logout', function () {
+    it('should invalidate the current session token', async function () {
+      const logoutResponse = await request(app)
+        .post('/api/auth/logout')
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(logoutResponse.body.success).to.equal(true);
+      expect(logoutResponse.body.data.logged_out).to.equal(true);
+
+      const profileResponse = await request(app)
+        .get('/api/auth/profile')
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(401);
+
+      expect(profileResponse.body.code).to.equal('SESSION_INACTIVE');
     });
   });
 });

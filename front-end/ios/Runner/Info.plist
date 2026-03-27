@@ -53,5 +53,20 @@
 	<string>MoroccoCheck a besoin d acces a vos photos pour joindre une image a votre avis.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>MoroccoCheck a besoin de la camera pour prendre une photo lors de l ajout d un avis.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>MoroccoCheck utilise Face ID pour proteger l acces a votre session quand vous revenez dans l application.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.moroccocheck.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>moroccocheck</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

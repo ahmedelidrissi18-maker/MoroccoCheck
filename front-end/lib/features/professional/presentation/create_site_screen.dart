@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/network/api_service.dart';
+import '../../../core/offline/pending_site_submission_service.dart';
 import '../../../shared/models/site_category.dart';
 import '../models/professional_site.dart';
 
@@ -21,15 +22,21 @@ class _CreateSiteScreenState extends State<CreateSiteScreen> {
   final _formKey = GlobalKey<FormState>();
   final ApiService _apiService = ApiService();
   late final TextEditingController _nameController;
+  late final TextEditingController _nameArController;
   late final TextEditingController _descriptionController;
+  late final TextEditingController _descriptionArController;
+  late final TextEditingController _subcategoryController;
   late final TextEditingController _addressController;
   late final TextEditingController _cityController;
   late final TextEditingController _regionController;
+  late final TextEditingController _postalCodeController;
   late final TextEditingController _latitudeController;
   late final TextEditingController _longitudeController;
   late final TextEditingController _phoneController;
   late final TextEditingController _emailController;
   late final TextEditingController _websiteController;
+  late final TextEditingController _amenitiesController;
+  late final TextEditingController _coverPhotoController;
 
   late int _selectedCategoryId;
   late String? _selectedPriceRange;
@@ -56,8 +63,15 @@ class _CreateSiteScreenState extends State<CreateSiteScreen> {
     super.initState();
     final site = widget.initialSite;
     _nameController = TextEditingController(text: site?.name ?? '');
+    _nameArController = TextEditingController(text: site?.nameAr ?? '');
     _descriptionController = TextEditingController(
       text: site?.description ?? '',
+    );
+    _descriptionArController = TextEditingController(
+      text: site?.descriptionAr ?? '',
+    );
+    _subcategoryController = TextEditingController(
+      text: site?.subcategory ?? '',
     );
     _addressController = TextEditingController(text: site?.address ?? '');
     _cityController = TextEditingController(
@@ -66,6 +80,7 @@ class _CreateSiteScreenState extends State<CreateSiteScreen> {
     _regionController = TextEditingController(
       text: site?.region ?? AppConstants.focusRegion,
     );
+    _postalCodeController = TextEditingController(text: site?.postalCode ?? '');
     _latitudeController = TextEditingController(
       text: '${site?.latitude ?? AppConstants.focusLatitude}',
     );
@@ -75,6 +90,10 @@ class _CreateSiteScreenState extends State<CreateSiteScreen> {
     _phoneController = TextEditingController(text: site?.phoneNumber ?? '');
     _emailController = TextEditingController(text: site?.email ?? '');
     _websiteController = TextEditingController(text: site?.website ?? '');
+    _amenitiesController = TextEditingController(
+      text: site?.amenities.join(', ') ?? '',
+    );
+    _coverPhotoController = TextEditingController(text: site?.coverPhoto ?? '');
     _selectedCategoryId = site?.categoryId ?? 1;
     _selectedPriceRange = site?.priceRange ?? 'MODERATE';
     _acceptsCardPayment = site?.acceptsCardPayment ?? true;
@@ -90,15 +109,21 @@ class _CreateSiteScreenState extends State<CreateSiteScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _nameArController.dispose();
     _descriptionController.dispose();
+    _descriptionArController.dispose();
+    _subcategoryController.dispose();
     _addressController.dispose();
     _cityController.dispose();
     _regionController.dispose();
+    _postalCodeController.dispose();
     _latitudeController.dispose();
     _longitudeController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
     _websiteController.dispose();
+    _amenitiesController.dispose();
+    _coverPhotoController.dispose();
     super.dispose();
   }
 
@@ -170,6 +195,42 @@ class _CreateSiteScreenState extends State<CreateSiteScreen> {
     return null;
   }
 
+  List<String> _parseAmenities() {
+    return _amenitiesController.text
+        .split(',')
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toSet()
+        .toList();
+  }
+
+  Map<String, dynamic> _buildSubmissionPayload() {
+    return <String, dynamic>{
+      'name': _nameController.text.trim(),
+      'category_id': _selectedCategoryId,
+      'latitude': double.parse(_latitudeController.text.trim()),
+      'longitude': double.parse(_longitudeController.text.trim()),
+      'name_ar': _nameArController.text.trim(),
+      'description': _descriptionController.text.trim(),
+      'description_ar': _descriptionArController.text.trim(),
+      'subcategory': _subcategoryController.text.trim(),
+      'address': _addressController.text.trim(),
+      'city': _cityController.text.trim(),
+      'region': _regionController.text.trim(),
+      'postal_code': _postalCodeController.text.trim(),
+      'phone_number': _phoneController.text.trim(),
+      'email': _emailController.text.trim(),
+      'website': _websiteController.text.trim(),
+      'price_range': _selectedPriceRange,
+      'amenities': _parseAmenities(),
+      'cover_photo': _coverPhotoController.text.trim(),
+      'accepts_card_payment': _acceptsCardPayment,
+      'has_wifi': _hasWifi,
+      'has_parking': _hasParking,
+      'is_accessible': _isAccessible,
+    };
+  }
+
   Future<void> _loadCategories() async {
     setState(() {
       _isCategoriesLoading = true;
@@ -233,41 +294,54 @@ class _CreateSiteScreenState extends State<CreateSiteScreen> {
     });
 
     final messenger = ScaffoldMessenger.of(context);
+    final submissionPayload = _buildSubmissionPayload();
 
     try {
       final result = _isEditMode
           ? await _apiService.updateSite(
               siteId: widget.initialSite!.id,
-              name: _nameController.text.trim(),
-              categoryId: _selectedCategoryId,
-              latitude: double.parse(_latitudeController.text.trim()),
-              longitude: double.parse(_longitudeController.text.trim()),
-              description: _descriptionController.text.trim(),
-              address: _addressController.text.trim(),
-              city: _cityController.text.trim(),
-              region: _regionController.text.trim(),
-              phoneNumber: _phoneController.text.trim(),
-              email: _emailController.text.trim(),
-              website: _websiteController.text.trim(),
-              priceRange: _selectedPriceRange,
+              name: submissionPayload['name'] as String,
+              categoryId: submissionPayload['category_id'] as int,
+              latitude: submissionPayload['latitude'] as double,
+              longitude: submissionPayload['longitude'] as double,
+              nameAr: submissionPayload['name_ar'] as String,
+              description: submissionPayload['description'] as String,
+              descriptionAr: submissionPayload['description_ar'] as String,
+              subcategory: submissionPayload['subcategory'] as String,
+              address: submissionPayload['address'] as String,
+              city: submissionPayload['city'] as String,
+              region: submissionPayload['region'] as String,
+              postalCode: submissionPayload['postal_code'] as String,
+              phoneNumber: submissionPayload['phone_number'] as String,
+              email: submissionPayload['email'] as String,
+              website: submissionPayload['website'] as String,
+              priceRange: submissionPayload['price_range'] as String?,
+              amenities: submissionPayload['amenities'] as List<String>,
+              coverPhoto: submissionPayload['cover_photo'] as String,
               acceptsCardPayment: _acceptsCardPayment,
               hasWifi: _hasWifi,
               hasParking: _hasParking,
               isAccessible: _isAccessible,
             )
           : await _apiService.createSite(
-              name: _nameController.text.trim(),
-              categoryId: _selectedCategoryId,
-              latitude: double.parse(_latitudeController.text.trim()),
-              longitude: double.parse(_longitudeController.text.trim()),
-              description: _descriptionController.text.trim(),
-              address: _addressController.text.trim(),
-              city: _cityController.text.trim(),
-              region: _regionController.text.trim(),
-              phoneNumber: _phoneController.text.trim(),
-              email: _emailController.text.trim(),
-              website: _websiteController.text.trim(),
-              priceRange: _selectedPriceRange,
+              name: submissionPayload['name'] as String,
+              categoryId: submissionPayload['category_id'] as int,
+              latitude: submissionPayload['latitude'] as double,
+              longitude: submissionPayload['longitude'] as double,
+              nameAr: submissionPayload['name_ar'] as String,
+              description: submissionPayload['description'] as String,
+              descriptionAr: submissionPayload['description_ar'] as String,
+              subcategory: submissionPayload['subcategory'] as String,
+              address: submissionPayload['address'] as String,
+              city: submissionPayload['city'] as String,
+              region: submissionPayload['region'] as String,
+              postalCode: submissionPayload['postal_code'] as String,
+              phoneNumber: submissionPayload['phone_number'] as String,
+              email: submissionPayload['email'] as String,
+              website: submissionPayload['website'] as String,
+              priceRange: submissionPayload['price_range'] as String?,
+              amenities: submissionPayload['amenities'] as List<String>,
+              coverPhoto: submissionPayload['cover_photo'] as String,
               acceptsCardPayment: _acceptsCardPayment,
               hasWifi: _hasWifi,
               hasParking: _hasParking,
@@ -311,9 +385,39 @@ class _CreateSiteScreenState extends State<CreateSiteScreen> {
         }
       }
 
-      messenger.showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: AppColors.error),
-      );
+      final isRetryableNetworkError =
+          e is ApiException &&
+          (e.type == DioExceptionType.connectionError ||
+              e.type == DioExceptionType.connectionTimeout ||
+              e.type == DioExceptionType.receiveTimeout ||
+              e.type == DioExceptionType.sendTimeout);
+
+      if (isRetryableNetworkError) {
+        await PendingSiteSubmissionService().enqueue(
+          PendingSiteSubmissionPayload(
+            action: _isEditMode ? 'update' : 'create',
+            siteId: widget.initialSite?.id,
+            data: submissionPayload,
+            queuedAt: DateTime.now(),
+          ),
+        );
+        if (!mounted) return;
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              _isEditMode
+                  ? 'Mise a jour enregistree hors ligne. Elle sera synchronisee automatiquement.'
+                  : 'Soumission enregistree hors ligne. Elle sera synchronisee automatiquement.',
+            ),
+            backgroundColor: AppColors.secondary,
+          ),
+        );
+        context.pop(true);
+      } else {
+        messenger.showSnackBar(
+          SnackBar(content: Text(message), backgroundColor: AppColors.error),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -354,6 +458,14 @@ class _CreateSiteScreenState extends State<CreateSiteScreen> {
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: 'Nom du lieu'),
                 validator: (value) => _validateRequiredText(value, 'le nom'),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _nameArController,
+                decoration: const InputDecoration(
+                  labelText: 'Nom en arabe',
+                  hintText: 'Optionnel',
+                ),
               ),
               const SizedBox(height: 16),
               if (_categoriesError != null)
@@ -424,6 +536,23 @@ class _CreateSiteScreenState extends State<CreateSiteScreen> {
               ),
               const SizedBox(height: 16),
               TextFormField(
+                controller: _descriptionArController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Description en arabe',
+                  hintText: 'Optionnel',
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _subcategoryController,
+                decoration: const InputDecoration(
+                  labelText: 'Sous-categorie',
+                  hintText: 'Ex. Surf camp, rooftop, kasbah...',
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
                 controller: _addressController,
                 decoration: const InputDecoration(labelText: 'Adresse'),
               ),
@@ -448,6 +577,14 @@ class _CreateSiteScreenState extends State<CreateSiteScreen> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _postalCodeController,
+                decoration: const InputDecoration(
+                  labelText: 'Code postal',
+                  hintText: 'Optionnel',
+                ),
               ),
               const SizedBox(height: 16),
               Row(
@@ -497,6 +634,25 @@ class _CreateSiteScreenState extends State<CreateSiteScreen> {
                 keyboardType: TextInputType.url,
                 decoration: const InputDecoration(labelText: 'Site web'),
                 validator: _validateWebsite,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _coverPhotoController,
+                keyboardType: TextInputType.url,
+                decoration: const InputDecoration(
+                  labelText: 'URL photo de couverture',
+                  hintText: 'https://...',
+                ),
+                validator: _validateWebsite,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _amenitiesController,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Commodites',
+                  hintText: 'wifi, parking, terrasse, plage...',
+                ),
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(

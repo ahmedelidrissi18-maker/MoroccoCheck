@@ -1,0 +1,122 @@
+@startuml use_case_systemes_externes
+!define STRIPE_COLOR #635BFF
+!define GOOGLE_COLOR #4285F4
+!define FIREBASE_COLOR #FFA726
+
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam defaultFontName Arial
+
+skinparam actor {
+    BorderColor #2C3E50
+}
+
+skinparam usecase {
+    BackgroundColor #FFFFFF
+    BorderColor #2C3E50
+    ArrowColor #2C3E50
+}
+
+left to right direction
+
+actor "💳 Stripe" as Stripe #635BFF
+actor "🗺️ Google Maps API" as GoogleMaps #4285F4
+actor "🔔 Firebase FCM" as Firebase #FFA726
+
+rectangle "Système MoroccoCheck" {
+    
+    package "Module Paiement" #F3F0FF {
+        usecase "Traiter les paiements\nd'abonnement" as TraiterPaiement #635BFF
+        usecase "Gérer les abonnements\nrécurrents" as GererAbonnements
+        usecase "Envoyer des webhooks\nde confirmation" as EnvoyerWebhooks
+        usecase "Gérer les\nremboursements" as GererRemboursements
+    }
+    
+    package "Module Cartographie" #E3F2FD {
+        usecase "Fournir les cartes\ninteractives" as FournirCartes #4285F4
+        usecase "Valider la géolocalisation\nGPS (rayon 100m)" as ValiderGPS
+        usecase "Calculer les distances\net itinéraires" as CalculerItineraires
+        usecase "Geocoding /\nReverse Geocoding" as Geocoding
+    }
+    
+    package "Module Notifications" #FFF3E0 {
+        usecase "Envoyer des notifications\npush aux utilisateurs" as EnvoyerNotif #FFA726
+        usecase "Gérer les tokens\nde notification" as GererTokens
+        usecase "Planifier les\nnotifications" as PlanifierNotif
+    }
+}
+
+' Relations Stripe
+Stripe --> TraiterPaiement
+Stripe --> GererAbonnements
+Stripe --> EnvoyerWebhooks
+Stripe --> GererRemboursements
+
+' Relations Google Maps
+GoogleMaps --> FournirCartes
+GoogleMaps --> ValiderGPS
+GoogleMaps --> CalculerItineraires
+GoogleMaps --> Geocoding
+
+' Relations Firebase
+Firebase --> EnvoyerNotif
+Firebase --> GererTokens
+Firebase --> PlanifierNotif
+
+' Relations extend
+GererRemboursements .> TraiterPaiement : <<extend>>
+Geocoding .> FournirCartes : <<extend>>
+PlanifierNotif .> EnvoyerNotif : <<extend>>
+
+note right of Stripe
+  **Service de Paiement**
+  
+  **Caractéristiques:**
+  ✓ PCI DSS compliant
+  ✓ Webhooks signés
+  ✓ Gestion auto renouvellement
+  ✓ Support 135+ devises
+  ✓ 3D Secure
+  
+  **Plans:**
+  • Basic: Gratuit
+  • Pro: 29€/mois
+  • Premium: 99€/mois
+end note
+
+note bottom of GoogleMaps
+  **Service de Cartographie**
+  
+  **Fonctionnalités:**
+  📍 Markers colorés (fraîcheur)
+  🗺️ Clustering des sites
+  📏 Validation proximité (100m)
+  🛣️ Calcul itinéraires
+  🎯 Geocoding bidirectionnel
+  
+  **Code couleur fraîcheur:**
+  🟢 < 24h : Très récent
+  🟡 < 7j : Récent
+  🔴 < 30j : À vérifier
+  ⚪ > 30j : Obsolète
+end note
+
+note left of Firebase
+  **Service de Notifications**
+  
+  **Types de notifications:**
+  🏆 Nouveaux badges/niveaux
+  💬 Réponses aux avis
+  🎁 Nouvelles promotions
+  📍 Nouveaux sites à proximité
+  ⭐ Mises à jour favoris
+  
+  **Fonctionnalités:**
+  ✓ Push temps réel
+  ✓ Notifications planifiées
+  ✓ Segmentation utilisateurs
+  ✓ Analytics de livraison
+end note
+
+@enduml

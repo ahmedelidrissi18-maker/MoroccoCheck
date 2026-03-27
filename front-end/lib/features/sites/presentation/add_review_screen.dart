@@ -1,10 +1,14 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/network/api_service.dart';
+import '../../../core/offline/pending_review_service.dart';
 import '../../auth/presentation/auth_provider.dart';
 import 'sites/site.dart';
 import 'sites_provider.dart';
@@ -22,10 +26,12 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
   final _formKey = GlobalKey<FormState>();
   final _commentController = TextEditingController();
   final ApiService _apiService = ApiService();
+  final ImagePicker _imagePicker = ImagePicker();
 
   Site? _site;
   int _rating = 0;
   bool _isLoading = false;
+  List<XFile> _selectedPhotos = <XFile>[];
 
   @override
   void initState() {
@@ -96,6 +102,42 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
     return null;
   }
 
+  Future<void> _pickReviewPhotos() async {
+    try {
+      final pickedPhotos = await _imagePicker.pickMultiImage(
+        imageQuality: 82,
+        limit: 5,
+      );
+      if (!mounted || pickedPhotos.isEmpty) return;
+
+      setState(() {
+        final merged = <XFile>[
+          ..._selectedPhotos,
+          ...pickedPhotos.where(
+            (photo) => !_selectedPhotos.any((item) => item.path == photo.path),
+          ),
+        ];
+        _selectedPhotos = merged.take(5).toList();
+      });
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Impossible de selectionner les photos.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  void _removePhoto(XFile photo) {
+    setState(() {
+      _selectedPhotos = _selectedPhotos
+          .where((item) => item.path != photo.path)
+          .toList();
+    });
+  }
+
   Future<void> _handleSubmit() async {
     final messenger = ScaffoldMessenger.of(context);
     final authProvider = context.read<AuthProvider>();
@@ -125,8 +167,14 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
         siteId: _site!.id,
         rating: _rating,
         content: _commentController.text.trim(),
+        photos: _selectedPhotos,
       );
 
+      if (!mounted) return;
+      context.read<SitesProvider>().recordReviewSubmission(
+        _site!,
+        rating: _rating,
+      );
       if (!mounted) return;
       await authProvider.refreshUser();
       if (!mounted) return;
@@ -168,6 +216,32 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
       if (e is ApiException && e.isUnauthorized) {
         authProvider.clearError();
         router.go('/login');
+      } else if (e is ApiException &&
+          (e.type == DioExceptionType.connectionError ||
+              e.type == DioExceptionType.connectionTimeout ||
+              e.type == DioExceptionType.receiveTimeout ||
+              e.type == DioExceptionType.sendTimeout) &&
+          _site != null) {
+        await PendingReviewService().enqueue(
+          PendingReviewPayload(
+            siteId: _site!.id,
+            rating: _rating,
+            content: _commentController.text.trim(),
+            title: null,
+            photoPaths: _selectedPhotos.map((photo) => photo.path).toList(),
+            queuedAt: DateTime.now(),
+          ),
+        );
+        if (!mounted) return;
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Avis enregistre hors ligne. Il sera synchronise automatiquement des le retour de connexion.',
+            ),
+            backgroundColor: AppColors.secondary,
+          ),
+        );
+        router.pop();
       }
     } finally {
       if (mounted) {
@@ -271,37 +345,114 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                'Photo (bientot disponible)',
+                'Photos de l avis',
                 style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _isLoading || _selectedPhotos.length >= 5
+                    ? null
+                    : _pickReviewPhotos,
+                icon: const Icon(Icons.add_a_photo_outlined),
+                label: Text(
+                  _selectedPhotos.isEmpty
+                      ? 'Ajouter jusqu a 5 photos'
+                      : 'Ajouter d autres photos',
+                ),
               ),
               const SizedBox(height: 8),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.amber.withValues(alpha: 0.12),
+                  color: AppColors.surfaceAlt,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.amber.withValues(alpha: 0.35),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Text(
+                  _selectedPhotos.isEmpty
+                      ? 'Ajoutez des photos pour enrichir votre retour d experience.'
+                      : '${_selectedPhotos.length} photo${_selectedPhotos.length > 1 ? 's' : ''} selectionnee${_selectedPhotos.length > 1 ? 's' : ''}.',
+                  style: AppTextStyles.caption.copyWith(
+                    color: Colors.grey[800],
                   ),
                 ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.info_outline, color: Colors.amber),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Le backend n expose pas encore l upload de photo pour les avis. '
-                        'L avis est actuellement envoye en texte uniquement.',
-                        style: AppTextStyles.caption.copyWith(
-                          color: Colors.grey[800],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
               ),
+              if (_selectedPhotos.isNotEmpty) const SizedBox(height: 12),
+              if (_selectedPhotos.isNotEmpty)
+                SizedBox(
+                  height: 96,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _selectedPhotos.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(width: 10),
+                    itemBuilder: (context, index) {
+                      final photo = _selectedPhotos[index];
+                      return Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: FutureBuilder<Uint8List>(
+                              future: photo.readAsBytes(),
+                              builder: (context, snapshot) {
+                                if (snapshot.hasData) {
+                                  return Image.memory(
+                                    snapshot.data!,
+                                    width: 96,
+                                    height: 96,
+                                    fit: BoxFit.cover,
+                                  );
+                                }
+
+                                return Container(
+                                  width: 96,
+                                  height: 96,
+                                  color: Colors.grey[300],
+                                  alignment: Alignment.center,
+                                  child: snapshot.hasError
+                                      ? Icon(
+                                          Icons.broken_image_outlined,
+                                          color: Colors.grey[700],
+                                        )
+                                      : const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        ),
+                                );
+                              },
+                            ),
+                          ),
+                          Positioned(
+                            top: 4,
+                            right: 4,
+                            child: InkWell(
+                              onTap: _isLoading
+                                  ? null
+                                  : () => _removePhoto(photo),
+                              borderRadius: BorderRadius.circular(999),
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  color: Colors.black54,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.close,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,

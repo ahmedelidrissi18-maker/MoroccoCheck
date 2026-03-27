@@ -15,7 +15,6 @@ export const USER_ROLES = {
   TOURIST: 'TOURIST',           // Basic user with limited permissions
   CONTRIBUTOR: 'CONTRIBUTOR',   // Can contribute content
   PROFESSIONAL: 'PROFESSIONAL', // Professional user with enhanced features
-  MODERATOR: 'MODERATOR',       // Can moderate content and users
   ADMIN: 'ADMIN'                // Full administrative access
 };
 
@@ -89,6 +88,13 @@ export const POINTS = {
  * Controls the accuracy and distance requirements for GPS validation
  */
 export const GPS_VALIDATION = {
-  MAX_DISTANCE: 100,  // Maximum distance in meters for valid check-in
-  MIN_ACCURACY: 50    // Minimum GPS accuracy in meters for validation
+  MAX_DISTANCE: 100,  // Default maximum distance in meters for valid check-in
+  MIN_ACCURACY: 50,   // Maximum accepted GPS accuracy error in meters
+  STRICT_ACCURACY: 35,
+  DEFAULT_MIN_VISIT_DURATION_SECONDS: 15,
+  DYNAMIC_DISTANCE_RULES: {
+    strict: 60,
+    standard: 100,
+    relaxed: 140
+  }
 };

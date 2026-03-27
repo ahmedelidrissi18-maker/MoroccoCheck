@@ -1,20 +1,33 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 import '../constants/app_constants.dart';
 import '../storage/storage_service.dart';
+import '../../features/profile/presentation/models/checkin_history_item.dart';
+import '../../features/profile/presentation/models/my_review_item.dart';
 import '../../features/profile/presentation/models/leaderboard_entry.dart';
 import '../../features/profile/presentation/models/badge_catalog_item.dart';
+import '../../features/profile/presentation/models/public_user_profile.dart';
 import '../../features/professional/models/professional_site_detail.dart';
 import '../../features/professional/models/professional_site.dart';
+import '../../features/sites/presentation/models/checkin_detail.dart';
 import '../../features/sites/presentation/models/review.dart';
 import '../../features/sites/presentation/models/site_photo.dart';
 import '../../features/sites/presentation/sites/site.dart';
 import '../../shared/models/site_category.dart';
 
+part 'api_service_checkins.dart';
+part 'api_service_reviews.dart';
+part 'api_service_sites.dart';
+part 'api_service_profile.dart';
+part 'api_service_models.dart';
+
 class ApiService {
   static Future<bool>? _refreshFuture;
+  static final Set<ApiService> _instances = <ApiService>{};
 
   late final Dio _dio;
   late final Dio _refreshDio;
@@ -34,6 +47,15 @@ class ApiService {
     _dio = Dio(options);
     _refreshDio = Dio(options);
     _setupInterceptors();
+    _instances.add(this);
+  }
+
+  static void updateBaseUrl(String baseUrl) {
+    final normalized = AppConstants.normalizeApiBaseUrl(baseUrl);
+    for (final instance in _instances) {
+      instance._dio.options.baseUrl = normalized;
+      instance._refreshDio.options.baseUrl = normalized;
+    }
   }
 
   bool _canRefreshRequest(RequestOptions options) {
@@ -105,6 +127,84 @@ class ApiService {
     }
   }
 
+  bool _canRetryWithAlternativeBaseUrl(DioException error) {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return false;
+    }
+
+    if (error.requestOptions.extra['baseUrlRetried'] == true) {
+      return false;
+    }
+
+    return error.type == DioExceptionType.connectionError ||
+        error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        error.type == DioExceptionType.sendTimeout;
+  }
+
+  List<String> _resolveAlternativeBaseUrls(RequestOptions options) {
+    final currentBaseUrl = options.baseUrl.isNotEmpty
+        ? options.baseUrl
+        : _dio.options.baseUrl;
+
+    return AppConstants.androidConnectionFallbackBaseUrls
+        .map(AppConstants.normalizeApiBaseUrl)
+        .where((candidate) => candidate != currentBaseUrl)
+        .toList();
+  }
+
+  Future<Response<dynamic>?> _retryWithAlternativeBaseUrl(
+    RequestOptions requestOptions,
+  ) async {
+    final alternativeBaseUrls = _resolveAlternativeBaseUrls(requestOptions);
+
+    for (final baseUrl in alternativeBaseUrls) {
+      final retryDio = Dio(
+        BaseOptions(
+          baseUrl: baseUrl,
+          connectTimeout: _dio.options.connectTimeout,
+          receiveTimeout: _dio.options.receiveTimeout,
+          sendTimeout: _dio.options.sendTimeout,
+          headers: <String, dynamic>{..._dio.options.headers},
+        ),
+      );
+
+      try {
+        final response = await retryDio.request<dynamic>(
+          requestOptions.path,
+          data: requestOptions.data,
+          queryParameters: requestOptions.queryParameters,
+          cancelToken: requestOptions.cancelToken,
+          onReceiveProgress: requestOptions.onReceiveProgress,
+          onSendProgress: requestOptions.onSendProgress,
+          options: Options(
+            method: requestOptions.method,
+            headers: <String, dynamic>{...requestOptions.headers},
+            extra: <String, dynamic>{
+              ...requestOptions.extra,
+              'baseUrlRetried': true,
+            },
+            responseType: requestOptions.responseType,
+            contentType: requestOptions.contentType,
+            sendTimeout: requestOptions.sendTimeout,
+            receiveTimeout: requestOptions.receiveTimeout,
+            followRedirects: requestOptions.followRedirects,
+            validateStatus: requestOptions.validateStatus,
+            receiveDataWhenStatusError:
+                requestOptions.receiveDataWhenStatusError,
+          ),
+        );
+
+        _dio.options.baseUrl = baseUrl;
+        _refreshDio.options.baseUrl = baseUrl;
+        await StorageService().saveApiBaseUrl(baseUrl);
+        return response;
+      } catch (_) {}
+    }
+
+    return null;
+  }
+
   void _setupInterceptors() {
     _dio.interceptors.add(
       InterceptorsWrapper(
@@ -168,6 +268,15 @@ class ApiService {
 
                 return handler.resolve(retryResponse);
               }
+            }
+          }
+
+          if (_canRetryWithAlternativeBaseUrl(error)) {
+            final retryResponse = await _retryWithAlternativeBaseUrl(
+              error.requestOptions,
+            );
+            if (retryResponse != null) {
+              return handler.resolve(retryResponse);
             }
           }
 
@@ -457,26 +566,41 @@ class ApiService {
     _dio.options.headers.remove('Authorization');
   }
 
-  Future<void> submitCheckin({
+  Future<CheckinSubmissionResult> submitCheckin({
     required String siteId,
     required double latitude,
     required double longitude,
+    double accuracy = 20,
     String? status,
     String? comment,
     bool hasPhoto = false,
-  }) async {
-    await post(
-      '/checkins',
-      data: <String, dynamic>{
-        'site_id': int.tryParse(siteId) ?? 0,
-        'latitude': latitude,
-        'longitude': longitude,
-        'accuracy': 20,
-        'has_photo': hasPhoto,
-        'status': status,
-        if (comment != null && comment.isNotEmpty) 'comment': comment,
-      },
+    List<XFile> photos = const <XFile>[],
+    Map<String, dynamic>? deviceInfo,
+  }) {
+    return _submitCheckin(
+      this,
+      siteId: siteId,
+      latitude: latitude,
+      longitude: longitude,
+      accuracy: accuracy,
+      status: status,
+      comment: comment,
+      hasPhoto: hasPhoto,
+      photos: photos,
+      deviceInfo: deviceInfo,
     );
+  }
+
+  Future<CheckinDetail> fetchCheckinDetail(String checkinId) {
+    return _fetchCheckinDetail(this, checkinId);
+  }
+
+  Future<PaginatedResult<CheckinHistoryItem>> fetchMyCheckins({
+    int page = 1,
+    int limit = 20,
+    String? siteId,
+  }) {
+    return _fetchMyCheckins(this, page: page, limit: limit, siteId: siteId);
   }
 
   Future<ReviewSubmissionResult> submitReview({
@@ -484,73 +608,47 @@ class ApiService {
     required int rating,
     required String content,
     String? title,
-  }) async {
-    final response = await post(
-      '/reviews',
-      data: <String, dynamic>{
-        'site_id': int.tryParse(siteId) ?? 0,
-        'rating': rating,
-        'content': content,
-        if (title != null && title.isNotEmpty) 'title': title,
-      },
-    );
-
-    final data = _asStringKeyedMap(_extractData(response.data));
-    return ReviewSubmissionResult(
-      moderationStatus: data['moderation_status'] as String?,
-      pointsEarned: int.tryParse('${data['points_earned']}') ?? 0,
+    List<XFile> photos = const <XFile>[],
+  }) {
+    return _submitReview(
+      this,
+      siteId: siteId,
+      rating: rating,
+      content: content,
+      title: title,
+      photos: photos,
     );
   }
 
-  Future<List<Site>> fetchSites({Map<String, dynamic>? queryParameters}) async {
-    final items = await _fetchAllPaginatedItems(
-      '/sites',
-      queryParameters: queryParameters,
-    );
-
-    return items.map(Site.fromJson).toList();
+  Future<List<Site>> fetchSites({Map<String, dynamic>? queryParameters}) {
+    return _fetchSites(this, queryParameters: queryParameters);
   }
 
   Future<List<SiteCategory>> fetchCategories({
     bool topLevelOnly = false,
     bool includeChildren = true,
     Map<String, dynamic>? queryParameters,
-  }) async {
-    final response = await get(
-      '/categories',
-      queryParameters: <String, dynamic>{
-        ...?queryParameters,
-        if (topLevelOnly) 'top_level': 'true',
-        if (!includeChildren) 'include_children': 'false',
-      },
+  }) {
+    return _fetchCategories(
+      this,
+      topLevelOnly: topLevelOnly,
+      includeChildren: includeChildren,
+      queryParameters: queryParameters,
     );
-    final items = _extractList(response.data);
-
-    return items.whereType<Map>().map((item) {
-      final rawMap = item;
-      return SiteCategory.fromJson(
-        rawMap.map((key, value) => MapEntry(key.toString(), value)),
-      );
-    }).toList();
   }
 
   Future<List<ProfessionalSite>> fetchProfessionalSites({
     Map<String, dynamic>? queryParameters,
-  }) async {
-    final items = await _fetchAllPaginatedItems(
-      '/sites/mine',
-      queryParameters: queryParameters,
-    );
-
-    return items.map(ProfessionalSite.fromJson).toList();
+  }) {
+    return _fetchProfessionalSites(this, queryParameters: queryParameters);
   }
 
-  Future<ProfessionalSiteDetail> fetchProfessionalSiteDetail(
-    String siteId,
-  ) async {
-    final response = await get('/sites/mine/$siteId');
-    final data = _asStringKeyedMap(_extractData(response.data));
-    return ProfessionalSiteDetail.fromJson(data);
+  Future<ProfessionalSiteDetail> fetchProfessionalSiteDetail(String siteId) {
+    return _fetchProfessionalSiteDetail(this, siteId);
+  }
+
+  Future<ProfessionalSiteDetail> claimProfessionalSite(String siteId) {
+    return _claimProfessionalSite(this, siteId);
   }
 
   Future<ProfessionalSite> createSite({
@@ -558,48 +656,50 @@ class ApiService {
     required int categoryId,
     required double latitude,
     required double longitude,
+    String? nameAr,
     String? description,
+    String? descriptionAr,
+    String? subcategory,
     String? address,
     String? city,
     String? region,
+    String? postalCode,
     String? phoneNumber,
     String? email,
     String? website,
     String? priceRange,
+    List<String>? amenities,
+    String? coverPhoto,
     bool acceptsCardPayment = false,
     bool hasWifi = false,
     bool hasParking = false,
     bool isAccessible = false,
-  }) async {
-    final response = await post(
-      '/sites',
-      data: <String, dynamic>{
-        'name': name,
-        'category_id': categoryId,
-        'latitude': latitude,
-        'longitude': longitude,
-        if (description != null && description.isNotEmpty)
-          'description': description,
-        if (address != null && address.isNotEmpty) 'address': address,
-        if (city != null && city.isNotEmpty) 'city': city,
-        if (region != null && region.isNotEmpty) 'region': region,
-        if (phoneNumber != null && phoneNumber.isNotEmpty)
-          'phone_number': phoneNumber,
-        if (email != null && email.isNotEmpty) 'email': email,
-        if (website != null && website.isNotEmpty) 'website': website,
-        if (priceRange != null && priceRange.isNotEmpty)
-          'price_range': priceRange,
-        'accepts_card_payment': acceptsCardPayment,
-        'has_wifi': hasWifi,
-        'has_parking': hasParking,
-        'is_accessible': isAccessible,
-        'country': 'MA',
-      },
+  }) {
+    return _createSite(
+      this,
+      name: name,
+      categoryId: categoryId,
+      latitude: latitude,
+      longitude: longitude,
+      nameAr: nameAr,
+      description: description,
+      descriptionAr: descriptionAr,
+      subcategory: subcategory,
+      address: address,
+      city: city,
+      region: region,
+      postalCode: postalCode,
+      phoneNumber: phoneNumber,
+      email: email,
+      website: website,
+      priceRange: priceRange,
+      amenities: amenities,
+      coverPhoto: coverPhoto,
+      acceptsCardPayment: acceptsCardPayment,
+      hasWifi: hasWifi,
+      hasParking: hasParking,
+      isAccessible: isAccessible,
     );
-
-    final data = _asStringKeyedMap(_extractData(response.data));
-    final siteData = _asStringKeyedMap(data['site'] ?? data);
-    return ProfessionalSite.fromJson(siteData);
   }
 
   Future<ProfessionalSite> updateSite({
@@ -608,80 +708,143 @@ class ApiService {
     required int categoryId,
     required double latitude,
     required double longitude,
+    String? nameAr,
     String? description,
+    String? descriptionAr,
+    String? subcategory,
     String? address,
     String? city,
     String? region,
+    String? postalCode,
     String? phoneNumber,
     String? email,
     String? website,
     String? priceRange,
+    List<String>? amenities,
+    String? coverPhoto,
     bool acceptsCardPayment = false,
     bool hasWifi = false,
     bool hasParking = false,
     bool isAccessible = false,
-  }) async {
-    final response = await put(
-      '/sites/$siteId',
-      data: <String, dynamic>{
-        'name': name,
-        'category_id': categoryId,
-        'latitude': latitude,
-        'longitude': longitude,
-        'description': description,
-        'address': address,
-        'city': city,
-        'region': region,
-        'phone_number': phoneNumber,
-        'email': email,
-        'website': website,
-        'price_range': priceRange,
-        'accepts_card_payment': acceptsCardPayment,
-        'has_wifi': hasWifi,
-        'has_parking': hasParking,
-        'is_accessible': isAccessible,
-      },
+  }) {
+    return _updateSite(
+      this,
+      siteId: siteId,
+      name: name,
+      categoryId: categoryId,
+      latitude: latitude,
+      longitude: longitude,
+      nameAr: nameAr,
+      description: description,
+      descriptionAr: descriptionAr,
+      subcategory: subcategory,
+      address: address,
+      city: city,
+      region: region,
+      postalCode: postalCode,
+      phoneNumber: phoneNumber,
+      email: email,
+      website: website,
+      priceRange: priceRange,
+      amenities: amenities,
+      coverPhoto: coverPhoto,
+      acceptsCardPayment: acceptsCardPayment,
+      hasWifi: hasWifi,
+      hasParking: hasParking,
+      isAccessible: isAccessible,
     );
-
-    final data = _asStringKeyedMap(_extractData(response.data));
-    final siteData = _asStringKeyedMap(data['site'] ?? data);
-    return ProfessionalSite.fromJson(siteData);
   }
 
-  Future<Site> fetchSiteDetail(String siteId) async {
-    final response = await get('/sites/$siteId');
-    final data = _asStringKeyedMap(_extractData(response.data));
-    final siteData = _asStringKeyedMap(data['site'] ?? data);
-    return Site.fromJson(siteData);
+  Future<Site> fetchSiteDetail(String siteId) {
+    return _fetchSiteDetail(this, siteId);
   }
 
   Future<List<Review>> fetchSiteReviews(
     String siteId, {
     Map<String, dynamic>? queryParameters,
-  }) async {
-    final items = await _fetchAllPaginatedItems(
-      '/sites/$siteId/reviews',
-      queryParameters: queryParameters,
-    );
+  }) {
+    return _fetchSiteReviews(this, siteId, queryParameters: queryParameters);
+  }
 
-    return items.map(Review.fromJson).toList();
+  Future<PaginatedResult<MyReviewItem>> fetchMyReviews({
+    required int userId,
+    int page = 1,
+    int limit = 20,
+    String? status,
+  }) {
+    return _fetchMyReviews(
+      this,
+      userId: userId,
+      page: page,
+      limit: limit,
+      status: status,
+    );
+  }
+
+  Future<MyReviewItem> fetchMyReview(String reviewId) {
+    return _fetchMyReview(this, reviewId);
+  }
+
+  Future<MyReviewItem> updateMyReview({
+    required String reviewId,
+    required int rating,
+    required String content,
+    String? title,
+  }) {
+    return _updateMyReview(
+      this,
+      reviewId: reviewId,
+      rating: rating,
+      content: content,
+      title: title,
+    );
+  }
+
+  Future<void> deleteMyReview(String reviewId) {
+    return _deleteMyReview(this, reviewId);
+  }
+
+  Future<Review> respondToReview({
+    required String reviewId,
+    required String responseText,
+  }) {
+    return _respondToReview(
+      this,
+      reviewId: reviewId,
+      responseText: responseText,
+    );
   }
 
   Future<List<SitePhoto>> fetchSitePhotos(
     String siteId, {
     Map<String, dynamic>? queryParameters,
-  }) async {
-    final items = await _fetchAllPaginatedItems(
-      '/sites/$siteId/photos',
-      queryParameters: queryParameters,
-    );
-
-    return items.map(SitePhoto.fromJson).toList();
+  }) {
+    return _fetchSitePhotos(this, siteId, queryParameters: queryParameters);
   }
 
-  Future<Map<String, dynamic>> fetchMyStats() async {
-    final response = await get('/users/me/stats');
-    return _asStringKeyedMap(_extractData(response.data));
+  Future<PasswordUpdateResult> updateMyPassword({
+    required String currentPassword,
+    required String newPassword,
+  }) {
+    return _updateMyPassword(
+      this,
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+  }
+
+  Future<Map<String, dynamic>> fetchMyStats() {
+    return _fetchMyStats(this);
+  }
+
+  Future<Map<String, dynamic>> fetchContributorRequestStatus() {
+    return _fetchContributorRequestStatus(this);
+  }
+
+  Future<Map<String, dynamic>> submitContributorRequest({
+    required String motivation,
+  }) {
+    return _submitContributorRequest(this, motivation: motivation);
   }
 
   Future<UserProfileUpdateResult> updateMyProfile({
@@ -692,135 +855,35 @@ class ApiService {
     String? nationality,
     String? bio,
     String? profilePicture,
-  }) async {
-    final response = await put(
-      '${AppConstants.authBasePath}/profile',
-      data: <String, dynamic>{
-        'first_name': firstName,
-        'last_name': lastName,
-        'email': email,
-        'phone_number': phoneNumber,
-        'nationality': nationality,
-        'bio': bio,
-        'profile_picture': profilePicture,
-      },
-    );
-
-    final data = _asStringKeyedMap(_extractData(response.data));
-    final userData = _asStringKeyedMap(data['user'] ?? data);
-    final badges = data['badges'];
-
-    return UserProfileUpdateResult(
-      userData: userData,
-      badges: badges is List ? badges : const <dynamic>[],
+  }) {
+    return _updateMyProfile(
+      this,
+      firstName: firstName,
+      lastName: lastName,
+      email: email,
+      phoneNumber: phoneNumber,
+      nationality: nationality,
+      bio: bio,
+      profilePicture: profilePicture,
     );
   }
 
-  Future<List<Map<String, dynamic>>> fetchMyBadges() async {
-    final response = await get('/users/me/badges');
-    final items = _extractList(response.data);
-
-    return items.whereType<Map>().map((item) {
-      final rawMap = item;
-      return rawMap.map((key, value) => MapEntry(key.toString(), value));
-    }).toList();
+  Future<List<Map<String, dynamic>>> fetchMyBadges() {
+    return _fetchMyBadges(this);
   }
 
-  Future<List<BadgeCatalogItem>> fetchBadgesCatalog() async {
-    final response = await get('/badges');
-    final items = _extractList(response.data);
-
-    return items.whereType<Map>().map((item) {
-      final rawMap = item;
-      return BadgeCatalogItem.fromJson(
-        rawMap.map((key, value) => MapEntry(key.toString(), value)),
-      );
-    }).toList();
+  Future<List<BadgeCatalogItem>> fetchBadgesCatalog() {
+    return _fetchBadgesCatalog(this);
   }
 
   Future<PaginatedResult<LeaderboardEntry>> fetchLeaderboard({
     int page = 1,
     int limit = 20,
-  }) async {
-    final response = await get(
-      '/leaderboard',
-      queryParameters: <String, dynamic>{'page': page, 'limit': limit},
-    );
-    final items = _extractList(response.data);
-    final responseMap = _asStringKeyedMap(response.data);
-    final meta = _asStringKeyedMap(responseMap['meta']);
-    final pagination = _asStringKeyedMap(meta['pagination']);
-
-    return PaginatedResult<LeaderboardEntry>(
-      items: items.whereType<Map>().map((item) {
-        final rawMap = item;
-        return LeaderboardEntry.fromJson(
-          rawMap.map((key, value) => MapEntry(key.toString(), value)),
-        );
-      }).toList(),
-      page: int.tryParse('${pagination['page']}') ?? page,
-      limit: int.tryParse('${pagination['limit']}') ?? limit,
-      total: int.tryParse('${pagination['total']}') ?? items.length,
-    );
+  }) {
+    return _fetchLeaderboard(this, page: page, limit: limit);
   }
-}
 
-class ApiException implements Exception {
-  final String message;
-  final int? statusCode;
-  final DioExceptionType? type;
-  final String? code;
-  final dynamic details;
-
-  ApiException({
-    required this.message,
-    this.statusCode,
-    this.type,
-    this.code,
-    this.details,
-  });
-
-  @override
-  String toString() => message;
-
-  bool get isUnauthorized => statusCode == 401;
-  bool get isForbidden => statusCode == 403;
-  bool get isNotFound => statusCode == 404;
-  bool get isServerError => statusCode != null && statusCode! >= 500;
-  bool get isClientError =>
-      statusCode != null && statusCode! >= 400 && statusCode! < 500;
-}
-
-class ReviewSubmissionResult {
-  final String? moderationStatus;
-  final int pointsEarned;
-
-  const ReviewSubmissionResult({
-    required this.moderationStatus,
-    required this.pointsEarned,
-  });
-
-  bool get isPendingModeration => moderationStatus == 'PENDING';
-  bool get isPublished => moderationStatus == 'APPROVED';
-}
-
-class PaginatedResult<T> {
-  final List<T> items;
-  final int page;
-  final int limit;
-  final int total;
-
-  const PaginatedResult({
-    required this.items,
-    required this.page,
-    required this.limit,
-    required this.total,
-  });
-}
-
-class UserProfileUpdateResult {
-  final Map<String, dynamic> userData;
-  final List<dynamic> badges;
-
-  const UserProfileUpdateResult({required this.userData, required this.badges});
+  Future<PublicUserProfile> fetchPublicUserProfile(String userId) {
+    return _fetchPublicUserProfile(this, userId);
+  }
 }

@@ -1,5 +1,6 @@
 import pool from '../config/database.js';
 import { hashPassword, verifyPassword } from '../utils/password.utils.js';
+import { toPublicMediaUrl } from '../utils/media.utils.js';
 import { paginationMeta, parsePagination, toAppError } from './common.service.js';
 
 export async function listBadges() {
@@ -188,8 +189,39 @@ export async function getMyStats(userId) {
      FROM (
        SELECT
          'CHECKIN' AS type,
+         c.id AS activity_id,
+         c.site_id,
          ts.name AS site_name,
+         ts.city,
          c.points_earned,
+         (
+           SELECT p.url
+           FROM photos p
+           WHERE p.entity_type = 'CHECKIN'
+             AND p.entity_id = c.id
+             AND p.status = 'ACTIVE'
+             AND p.moderation_status = 'APPROVED'
+           ORDER BY p.is_primary DESC, p.display_order ASC, p.created_at ASC
+           LIMIT 1
+         ) AS photo_url,
+         (
+           SELECT p.thumbnail_url
+           FROM photos p
+           WHERE p.entity_type = 'CHECKIN'
+             AND p.entity_id = c.id
+             AND p.status = 'ACTIVE'
+             AND p.moderation_status = 'APPROVED'
+           ORDER BY p.is_primary DESC, p.display_order ASC, p.created_at ASC
+           LIMIT 1
+         ) AS photo_thumbnail_url,
+         (
+           SELECT COUNT(*)
+           FROM photos p
+           WHERE p.entity_type = 'CHECKIN'
+             AND p.entity_id = c.id
+             AND p.status = 'ACTIVE'
+             AND p.moderation_status = 'APPROVED'
+         ) AS photos_count,
          c.created_at
        FROM checkins c
        INNER JOIN tourist_sites ts ON ts.id = c.site_id
@@ -197,8 +229,14 @@ export async function getMyStats(userId) {
        UNION ALL
        SELECT
          'REVIEW' AS type,
+         r.id AS activity_id,
+         r.site_id,
          ts.name AS site_name,
+         ts.city,
          r.points_earned,
+         NULL AS photo_url,
+         NULL AS photo_thumbnail_url,
+         0 AS photos_count,
          r.created_at
        FROM reviews r
        INNER JOIN tourist_sites ts ON ts.id = r.site_id
@@ -241,7 +279,13 @@ export async function getMyStats(userId) {
     },
     recent_activity: recentActivity.map((item) => ({
       ...item,
-      points_earned: Number(item.points_earned || 0)
+      activity_id: Number(item.activity_id || 0),
+      site_id: Number(item.site_id || 0),
+      city: item.city || '',
+      points_earned: Number(item.points_earned || 0),
+      photos_count: Number(item.photos_count || 0),
+      photo_url: toPublicMediaUrl(item.photo_url),
+      photo_thumbnail_url: toPublicMediaUrl(item.photo_thumbnail_url || item.photo_url)
     }))
   };
 }

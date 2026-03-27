@@ -1,0 +1,124 @@
+@startuml use_case_global
+!define TOURIST_COLOR #4A90E2
+!define CONTRIBUTOR_COLOR #E74C3C
+!define PROFESSIONAL_COLOR #9B59B6
+!define ADMIN_COLOR #FF9800
+
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+skinparam shadowing false
+
+skinparam actor {
+    BorderColor #2C3E50
+}
+
+skinparam usecase {
+    BackgroundColor #FFFFFF
+    BorderColor #2C3E50
+    ArrowColor #2C3E50
+}
+
+left to right direction
+
+title MoroccoCheck - Vue Globale
+
+' Acteurs Humains
+actor "👤 Touriste" as Touriste #4A90E2
+actor "🔴 Contributeur" as Contributeur #E74C3C
+actor "🟣 Professionnel" as Professionnel #9B59B6
+actor "🟠 Administrateur" as Admin #FF9800
+
+' Acteurs Systèmes
+actor "💳 Stripe" as Stripe #635BFF
+actor "🗺️ Google Maps" as GoogleMaps #4285F4
+actor "🔔 Firebase" as Firebase #FFA726
+
+rectangle "Système MoroccoCheck" {
+    
+    package "Module Consultation" #E8F5E9 {
+        usecase "Consulter carte" as ConsulterCarte #2ECC71
+        usecase "Rechercher sites" as RechercherSites
+        usecase "Voir détails" as VoirDetails
+        usecase "Obtenir itinéraire" as ObtenirItineraire
+    }
+    
+    package "Module Contribution" #FFEBEE {
+        usecase "Check-in GPS" as CheckIn #E74C3C
+        usecase "Laisser avis" as LaisserAvis #E74C3C
+        usecase "Gagner points" as GagnerPoints #F39C12
+        usecase "Voir badges" as VoirBadges
+        usecase "Leaderboard" as Leaderboard
+    }
+    
+    package "Module Professionnel" #F3E5F5 {
+        usecase "Gérer établissement" as GererEtab #9B59B6
+        usecase "Analytics" as Analytics #3498DB
+        usecase "Répondre avis" as RepondreAvis
+        usecase "S'abonner" as Abonner
+    }
+    
+    package "Module Administration" #FFF3E0 {
+        usecase "Modérer contenu" as Moderer #E74C3C
+        usecase "Valider établissements" as Valider #F39C12
+        usecase "Gérer utilisateurs" as GererUsers #3498DB
+    }
+    
+    package "Services Externes" #F8F9FA {
+        usecase "Traiter paiements" as Paiements
+        usecase "Fournir cartes" as Cartes
+        usecase "Notifications push" as Notifs
+    }
+}
+
+' Héritage
+Contributeur -up-|> Touriste
+
+' Relations Touriste
+Touriste --> ConsulterCarte
+Touriste --> RechercherSites
+Touriste --> VoirDetails
+Touriste --> ObtenirItineraire
+
+' Relations Contributeur
+Contributeur --> CheckIn
+Contributeur --> LaisserAvis
+Contributeur --> VoirBadges
+Contributeur --> Leaderboard
+
+' Relations Professionnel
+Professionnel --> GererEtab
+Professionnel --> Analytics
+Professionnel --> RepondreAvis
+Professionnel --> Abonner
+
+' Relations Administrateur
+Admin --> Moderer
+Admin --> Valider
+Admin --> GererUsers
+
+' Relations Systèmes
+Stripe --> Paiements
+GoogleMaps --> Cartes
+Firebase --> Notifs
+
+' Relations include/extend
+CheckIn ..> GagnerPoints : <<include>>
+LaisserAvis ..> GagnerPoints : <<include>>
+ConsulterCarte ..> Cartes : <<use>>
+ObtenirItineraire ..> Cartes : <<use>>
+CheckIn ..> Cartes : <<use>>
+Abonner ..> Paiements : <<use>>
+GagnerPoints ..> Notifs : <<use>>
+RepondreAvis ..> Notifs : <<use>>
+
+legend right
+  |<#4A90E2> | Touriste |
+  |<#E74C3C> | Contributeur |
+  |<#9B59B6> | Professionnel |
+  |<#FF9800> | Administrateur |
+  |<#635BFF> | Stripe |
+  |<#4285F4> | Google Maps |
+  |<#FFA726> | Firebase |
+endlegend
+
+@enduml

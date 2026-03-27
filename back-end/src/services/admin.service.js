@@ -1,12 +1,54 @@
 import pool from '../config/database.js';
+import { removeFileIfExists, resolveStoredReviewPhotoPath, toPublicMediaUrl } from '../utils/media.utils.js';
 import { paginationMeta, parsePagination, syncSiteReviewAggregates, toAppError } from './common.service.js';
 
 export async function listPendingSites(query) {
   const { page, limit, offset } = parsePagination(query);
+  const filters = [
+    'ts.deleted_at IS NULL',
+    `ts.verification_status = 'PENDING'`
+  ];
+  const params = [];
+
+  if (query.q) {
+    const search = `%${query.q.trim()}%`;
+    filters.push(`(
+      ts.name LIKE ?
+      OR ts.city LIKE ?
+      OR ts.region LIKE ?
+      OR COALESCE(c.name, '') LIKE ?
+      OR COALESCE(u.email, '') LIKE ?
+      OR CONCAT_WS(' ', COALESCE(u.first_name, ''), COALESCE(u.last_name, '')) LIKE ?
+    )`);
+    params.push(search, search, search, search, search, search);
+  }
+
+  if (query.city) {
+    filters.push('ts.city = ?');
+    params.push(query.city);
+  }
+
+  if (query.region) {
+    filters.push('ts.region = ?');
+    params.push(query.region);
+  }
+
+  const sortMap = {
+    oldest: 'ts.created_at ASC',
+    newest: 'ts.created_at DESC',
+    city: 'ts.city ASC, ts.created_at ASC',
+    name: 'ts.name ASC, ts.created_at ASC'
+  };
+  const orderBy = sortMap[query.sort] || sortMap.oldest;
+  const whereClause = `WHERE ${filters.join(' AND ')}`;
+
   const [countRows] = await pool.query(
     `SELECT COUNT(*) AS total
-     FROM tourist_sites
-     WHERE deleted_at IS NULL AND verification_status = 'PENDING'`
+     FROM tourist_sites ts
+     LEFT JOIN users u ON u.id = ts.owner_id
+     LEFT JOIN categories c ON c.id = ts.category_id
+     ${whereClause}`,
+    params
   );
   const [rows] = await pool.query(
     `SELECT
@@ -14,17 +56,20 @@ export async function listPendingSites(query) {
         ts.name,
         ts.city,
         ts.region,
+        c.name AS category_name,
         ts.status,
         ts.verification_status,
         ts.created_at,
+        u.email AS owner_email,
         u.first_name AS owner_first_name,
         u.last_name AS owner_last_name
      FROM tourist_sites ts
      LEFT JOIN users u ON u.id = ts.owner_id
-     WHERE ts.deleted_at IS NULL AND ts.verification_status = 'PENDING'
-     ORDER BY ts.created_at ASC
+     LEFT JOIN categories c ON c.id = ts.category_id
+     ${whereClause}
+     ORDER BY ${orderBy}
      LIMIT ? OFFSET ?`,
-    [limit, offset]
+    [...params, limit, offset]
   );
 
   return {
@@ -117,10 +162,45 @@ export async function getAdminSiteDetail(siteId) {
 
 export async function listPendingReviews(query) {
   const { page, limit, offset } = parsePagination(query);
+  const filters = [
+    'r.deleted_at IS NULL',
+    `r.moderation_status = 'PENDING'`
+  ];
+  const params = [];
+
+  if (query.q) {
+    const search = `%${query.q.trim()}%`;
+    filters.push(`(
+      COALESCE(r.title, '') LIKE ?
+      OR r.content LIKE ?
+      OR ts.name LIKE ?
+      OR u.email LIKE ?
+      OR CONCAT_WS(' ', COALESCE(u.first_name, ''), COALESCE(u.last_name, '')) LIKE ?
+    )`);
+    params.push(search, search, search, search, search);
+  }
+
+  if (query.min_rating) {
+    filters.push('r.overall_rating >= ?');
+    params.push(Number(query.min_rating));
+  }
+
+  const sortMap = {
+    oldest: 'r.created_at ASC',
+    newest: 'r.created_at DESC',
+    rating_desc: 'r.overall_rating DESC, r.created_at ASC',
+    rating_asc: 'r.overall_rating ASC, r.created_at ASC'
+  };
+  const orderBy = sortMap[query.sort] || sortMap.oldest;
+  const whereClause = `WHERE ${filters.join(' AND ')}`;
+
   const [countRows] = await pool.query(
     `SELECT COUNT(*) AS total
-     FROM reviews
-     WHERE deleted_at IS NULL AND moderation_status = 'PENDING'`
+     FROM reviews r
+     INNER JOIN tourist_sites ts ON ts.id = r.site_id
+     INNER JOIN users u ON u.id = r.user_id
+     ${whereClause}`,
+    params
   );
   const [rows] = await pool.query(
     `SELECT
@@ -129,17 +209,19 @@ export async function listPendingReviews(query) {
         r.user_id,
         r.overall_rating,
         r.title,
+        r.visit_type,
         r.created_at,
         ts.name AS site_name,
+        u.email,
         u.first_name,
         u.last_name
      FROM reviews r
      INNER JOIN tourist_sites ts ON ts.id = r.site_id
      INNER JOIN users u ON u.id = r.user_id
-     WHERE r.deleted_at IS NULL AND r.moderation_status = 'PENDING'
-     ORDER BY r.created_at ASC
+     ${whereClause}
+     ORDER BY ${orderBy}
      LIMIT ? OFFSET ?`,
-    [limit, offset]
+    [...params, limit, offset]
   );
 
   return {
@@ -171,6 +253,21 @@ export async function moderateReview(reviewId, adminUserId, payload) {
      WHERE id = ?`,
     [nextState.moderation_status, nextState.status, adminUserId, payload.notes || null, reviewId]
   );
+  const photoStateByAction = {
+    APPROVE: { status: 'ACTIVE', moderation_status: 'APPROVED' },
+    REJECT: { status: 'HIDDEN', moderation_status: 'REJECTED' },
+    FLAG: { status: 'FLAGGED', moderation_status: 'REJECTED' },
+    SPAM: { status: 'FLAGGED', moderation_status: 'REJECTED' }
+  };
+  const nextPhotoState = photoStateByAction[payload.action];
+  if (nextPhotoState) {
+    await pool.query(
+      `UPDATE photos
+       SET status = ?, moderation_status = ?, updated_at = NOW()
+       WHERE entity_type = 'REVIEW' AND entity_id = ? AND status != 'DELETED'`,
+      [nextPhotoState.status, nextPhotoState.moderation_status, reviewId]
+    );
+  }
   await syncSiteReviewAggregates(pool, rows[0].site_id);
 
   return {
@@ -227,7 +324,75 @@ export async function getAdminReviewDetail(reviewId) {
     throw toAppError('Avis non trouve', 404);
   }
 
-  return rows[0];
+  const review = rows[0];
+  const [photos] = await pool.query(
+    `SELECT
+        id,
+        url,
+        thumbnail_url,
+        filename,
+        original_filename,
+        caption,
+        alt_text,
+        status,
+        moderation_status,
+        is_primary,
+        created_at
+     FROM photos
+     WHERE entity_type = 'REVIEW'
+       AND entity_id = ?
+       AND status != 'DELETED'
+     ORDER BY is_primary DESC, display_order ASC, created_at ASC`,
+    [reviewId]
+  );
+
+  return {
+    ...review,
+    photos: photos.map((photo) => ({
+      ...photo,
+      id: Number(photo.id),
+      url: toPublicMediaUrl(photo.url),
+      thumbnail_url: toPublicMediaUrl(photo.thumbnail_url || photo.url)
+    }))
+  };
+}
+
+export async function deleteReviewPhoto(reviewId, photoId, adminUserId) {
+  const [rows] = await pool.query(
+    `SELECT id, entity_id, user_id, filename
+     FROM photos
+     WHERE id = ?
+       AND entity_type = 'REVIEW'
+       AND entity_id = ?
+       AND status != 'DELETED'
+     LIMIT 1`,
+    [photoId, reviewId]
+  );
+
+  if (!rows.length) {
+    throw toAppError('Photo non trouvee', 404);
+  }
+
+  const photo = rows[0];
+  await pool.query(
+    `UPDATE photos
+     SET status = 'DELETED', moderation_status = 'REJECTED', updated_at = NOW()
+     WHERE id = ?`,
+    [photoId]
+  );
+  await pool.query(
+    `UPDATE reviews
+     SET moderated_by = ?, moderated_at = NOW(), updated_at = NOW()
+     WHERE id = ?`,
+    [adminUserId, reviewId]
+  );
+  removeFileIfExists(resolveStoredReviewPhotoPath(photo.filename));
+
+  return {
+    id: Number(photoId),
+    review_id: Number(reviewId),
+    deleted: true
+  };
 }
 
 export async function listUsers(query) {
@@ -280,6 +445,33 @@ export async function listUsers(query) {
   };
 }
 
+export async function getUserById(userId) {
+  const [rows] = await pool.query(
+    `SELECT
+        id,
+        email,
+        first_name,
+        last_name,
+        role,
+        status,
+        points,
+        level,
+        rank,
+        created_at,
+        last_login_at
+     FROM users
+     WHERE id = ? AND deleted_at IS NULL
+     LIMIT 1`,
+    [userId]
+  );
+
+  if (!rows.length) {
+    throw toAppError('Utilisateur non trouve', 404);
+  }
+
+  return rows[0];
+}
+
 export async function updateUserStatus(userId, status) {
   const [rows] = await pool.query(
     `SELECT id FROM users WHERE id = ? AND deleted_at IS NULL`,
@@ -304,6 +496,30 @@ export async function updateUserStatus(userId, status) {
   return updatedRows[0];
 }
 
+export async function updateUserRole(userId, role) {
+  const [rows] = await pool.query(
+    `SELECT id FROM users WHERE id = ? AND deleted_at IS NULL`,
+    [userId]
+  );
+  if (!rows.length) {
+    throw toAppError('Utilisateur non trouve', 404);
+  }
+
+  await pool.query(
+    `UPDATE users SET role = ?, updated_at = NOW() WHERE id = ?`,
+    [role, userId]
+  );
+
+  const [updatedRows] = await pool.query(
+    `SELECT id, email, first_name, last_name, role, status, points, level, rank
+     FROM users
+     WHERE id = ?`,
+    [userId]
+  );
+
+  return updatedRows[0];
+}
+
 export async function getAdminStats() {
   const [rows] = await pool.query(
     `SELECT
@@ -313,6 +529,7 @@ export async function getAdminStats() {
         (SELECT COUNT(*) FROM reviews WHERE deleted_at IS NULL) AS reviews,
         (SELECT COUNT(*) FROM tourist_sites WHERE deleted_at IS NULL AND verification_status = 'PENDING') AS pending_sites,
         (SELECT COUNT(*) FROM reviews WHERE deleted_at IS NULL AND moderation_status = 'PENDING') AS pending_reviews,
+        (SELECT COUNT(*) FROM contributor_requests WHERE status = 'PENDING') AS pending_contributor_requests,
         (SELECT COUNT(*) FROM users WHERE deleted_at IS NULL AND status = 'SUSPENDED') AS suspended_users`
   );
 

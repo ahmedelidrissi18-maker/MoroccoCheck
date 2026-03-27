@@ -1,22 +1,25 @@
-import { paginatedResponse, successResponse } from '../utils/response.utils.js';
-import { validateRequest, siteCreateSchema, siteUpdateSchema } from '../utils/validators.js';
+import {
+  paginatedResponse,
+  successResponse,
+  validationErrorResponse,
+} from "../utils/response.utils.js";
+import {
+  validateRequest,
+  siteCreateSchema,
+  siteUpdateSchema,
+} from "../utils/validators.js";
 import {
   listSites,
   listMySites,
   getSiteById,
   getMySiteById,
+  claimSite,
   createSite,
   updateSite,
   deleteSite,
   getSiteReviews,
-  getSitePhotos
-} from '../services/site.service.js';
-
-const formatValidationError = (error) => ({
-  success: false,
-  message: 'Validation echouee',
-  errors: error.details.map((detail) => detail.message)
-});
+  getSitePhotos,
+} from "../services/site.service.js";
 
 export const getSites = async (req, res) => {
   const result = await listSites(req.query, req.user);
@@ -38,33 +41,42 @@ export const getSite = async (req, res) => {
   return successResponse(res, result);
 };
 
+export const claimSiteHandler = async (req, res) => {
+  const result = await claimSite(Number(req.params.id), req.user);
+  return successResponse(res, result, "Site revendique avec succes");
+};
+
 export const createSiteHandler = async (req, res) => {
   const { error, value } = validateRequest(siteCreateSchema, req.body);
   if (error) {
-    return res.status(400).json(formatValidationError(error));
+    return validationErrorResponse(res, error);
   }
 
   const result = await createSite(value, req.user);
-  return successResponse(res, result, 'Site cree avec succes', 201);
+  return successResponse(res, result, "Site cree avec succes", 201);
 };
 
 export const updateSiteHandler = async (req, res) => {
   const { error, value } = validateRequest(siteUpdateSchema, req.body);
   if (error) {
-    return res.status(400).json(formatValidationError(error));
+    return validationErrorResponse(res, error);
   }
 
   const result = await updateSite(Number(req.params.id), value, req.user);
-  return successResponse(res, result, 'Site mis a jour avec succes');
+  return successResponse(res, result, "Site mis a jour avec succes");
 };
 
 export const deleteSiteHandler = async (req, res) => {
   const result = await deleteSite(Number(req.params.id), req.user);
-  return successResponse(res, result, 'Site archive avec succes');
+  return successResponse(res, result, "Site archive avec succes");
 };
 
 export const getSiteReviewsHandler = async (req, res) => {
-  const result = await getSiteReviews(Number(req.params.id), req.query, req.user);
+  const result = await getSiteReviews(
+    Number(req.params.id),
+    req.query,
+    req.user,
+  );
   return paginatedResponse(res, result.data, result.pagination);
 };
 

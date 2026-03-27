@@ -17,6 +17,15 @@ class AuthRemoteDatasource {
     return _parseAuthUser(response.data as Map<String, dynamic>);
   }
 
+  Future<User> loginWithGoogle(String idToken) async {
+    final response = await _apiService.post(
+      '${AppConstants.authBasePath}/google',
+      data: <String, dynamic>{'id_token': idToken},
+    );
+
+    return _parseAuthUser(response.data as Map<String, dynamic>);
+  }
+
   Future<User> register(
     String firstName,
     String lastName,

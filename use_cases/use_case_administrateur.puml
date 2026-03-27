@@ -1,0 +1,115 @@
+@startuml use_case_administrateur
+!define ADMIN_COLOR #FF9800
+!define DANGER_COLOR #E74C3C
+!define WARNING_COLOR #F39C12
+
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam defaultFontName Arial
+
+skinparam actor {
+    BackgroundColor ADMIN_COLOR
+    BorderColor #2C3E50
+}
+
+skinparam usecase {
+    BackgroundColor #FFFFFF
+    BorderColor #2C3E50
+    ArrowColor #2C3E50
+}
+
+left to right direction
+
+actor "🟠 Administrateur" as Admin #FF9800
+
+rectangle "Système MoroccoCheck" {
+    
+    package "Module Modération" #FFEBEE {
+        usecase "CU23\nModérer le contenu\nutilisateur" as CU23 #E74C3C
+        usecase "Supprimer un avis\ninapproprié" as SupprimerAvis
+        usecase "Supprimer des photos\ninappropriées" as SupprimerPhotos
+    }
+    
+    package "Module Validation" #FFF3E0 {
+        usecase "CU24\nValider un établissement\nprofessionnel" as CU24 #F39C12
+    }
+    
+    package "Module Gestion Utilisateurs" #E3F2FD {
+        usecase "CU25\nGérer les\nutilisateurs" as CU25 #3498DB
+        usecase "Suspendre un\ncompte" as SuspendreCompte
+        usecase "Supprimer un\ncompte" as SupprimerCompte
+        usecase "Modifier les rôles\nutilisateur" as ModifierRoles
+    }
+    
+    package "Module Gestion Sites" #E8F5E9 {
+        usecase "Gérer les sites\ntouristiques" as GererSites
+        usecase "Ajouter un site" as AjouterSite
+        usecase "Modifier un site" as ModifierSite
+        usecase "Supprimer un site" as SupprimerSite
+    }
+    
+    package "Module Statistiques" #F3E5F5 {
+        usecase "Consulter\nstatistiques globales" as ConsulterStats
+    }
+}
+
+' Relations Administrateur
+Admin --> CU23
+Admin --> CU24
+Admin --> CU25
+Admin --> GererSites
+Admin --> ConsulterStats
+
+' Relations include pour CU23
+CU23 ..> SupprimerAvis : <<include>>
+CU23 ..> SupprimerPhotos : <<include>>
+
+' Relations include pour CU25
+CU25 ..> SuspendreCompte : <<include>>
+CU25 ..> SupprimerCompte : <<include>>
+CU25 ..> ModifierRoles : <<include>>
+
+' Relations include pour GererSites
+GererSites ..> AjouterSite : <<include>>
+GererSites ..> ModifierSite : <<include>>
+GererSites ..> SupprimerSite : <<include>>
+
+note right of Admin
+  **Type:** Équipe MoroccoCheck
+  **Accès:** Complet au système
+  
+  **Responsabilités:**
+  🛡️ Modération contenu
+  ✅ Validation établissements
+  👥 Gestion utilisateurs
+  📍 Gestion sites
+  📊 Supervision globale
+end note
+
+note bottom of CU23
+  **Critères de modération:**
+  ⚠️ Contenu offensant
+  ⚠️ Spam
+  ⚠️ Fausses informations
+  ⚠️ Photos inappropriées
+  ⚠️ Avis frauduleux
+end note
+
+note bottom of CU24
+  **Processus de validation:**
+  1. Vérification documents
+  2. Contrôle informations
+  3. Validation géolocalisation
+  4. Approbation finale
+end note
+
+note bottom of CU25
+  **Actions disponibles:**
+  🔴 Suspension temporaire
+  ⛔ Suppression définitive
+  🔄 Changement de rôle
+  📧 Notifications automatiques
+end note
+
+@enduml

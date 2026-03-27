@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/offline/pending_sync_service.dart';
 import '../../../core/network/api_service.dart';
 import '../domain/auth_repository.dart';
 import '../data/auth_repository_impl.dart';
@@ -52,6 +53,14 @@ class AuthProvider extends ChangeNotifier {
 
       if (error.code == 'INVALID_CREDENTIALS') {
         return 'Email ou mot de passe incorrect.';
+      }
+
+      if (error.code == 'INVALID_GOOGLE_TOKEN') {
+        return 'La connexion Google a echoue. Veuillez reessayer.';
+      }
+
+      if (error.code == 'GOOGLE_AUTH_NOT_CONFIGURED') {
+        return 'La connexion Google n est pas encore configuree sur le serveur.';
       }
 
       if (error.isUnauthorized) {
@@ -112,6 +121,7 @@ class AuthProvider extends ChangeNotifier {
 
       final user = await _authRepository.login(email, password);
       _user = user;
+      await PendingSyncService.instance.syncAll();
 
       _setLoading(false);
 
@@ -148,6 +158,7 @@ class AuthProvider extends ChangeNotifier {
         password,
       );
       _user = user;
+      await PendingSyncService.instance.syncAll();
 
       _setLoading(false);
 
@@ -160,6 +171,30 @@ class AuthProvider extends ChangeNotifier {
     } catch (e) {
       _setLoading(false);
       _setError(_normalizeErrorMessage(e, isRegister: true));
+      return false;
+    }
+  }
+
+  /// Login user with Google
+  Future<bool> loginWithGoogle({BuildContext? context}) async {
+    try {
+      _setLoading(true);
+      _setError(null);
+
+      final user = await _authRepository.loginWithGoogle();
+      _user = user;
+      await PendingSyncService.instance.syncAll();
+
+      _setLoading(false);
+
+      if (context != null && _user != null && context.mounted) {
+        context.go('/home');
+      }
+
+      return true;
+    } catch (e) {
+      _setLoading(false);
+      _setError(_normalizeErrorMessage(e, isRegister: false));
       return false;
     }
   }
@@ -200,6 +235,7 @@ class AuthProvider extends ChangeNotifier {
 
       if (currentUser != null) {
         _user = currentUser;
+        await PendingSyncService.instance.syncAll();
 
         // Redirect to home if user is logged in
         if (context != null && context.mounted) {
@@ -233,6 +269,9 @@ class AuthProvider extends ChangeNotifier {
       _setError(null);
       final currentUser = await _authRepository.getCurrentUser();
       _user = currentUser;
+      if (_user != null) {
+        await PendingSyncService.instance.syncAll();
+      }
       notifyListeners();
     } catch (e) {
       _setError(_normalizeErrorMessage(e, isRegister: false));

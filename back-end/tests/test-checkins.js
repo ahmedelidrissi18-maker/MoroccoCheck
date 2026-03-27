@@ -2,10 +2,10 @@ import { after, before, describe, it } from 'mocha';
 import { expect } from 'chai';
 import dotenv from 'dotenv';
 import request from 'supertest';
-import { generateToken } from '../src/utils/jwt.utils.js';
 import checkinsRoutes from '../src/routes/checkins.routes.js';
 import {
   cleanupTestData,
+  createSessionForUser,
   createTestCategory,
   createTestSite,
   createTestUser,
@@ -53,7 +53,8 @@ describe('Check-ins API', function () {
       status: 'PUBLISHED',
       verification_status: 'VERIFIED'
     });
-    contributorToken = generateToken(contributor);
+    const contributorSession = await createSessionForUser(contributor);
+    contributorToken = contributorSession.access_token;
   });
 
   after(async function () {
@@ -115,7 +116,8 @@ describe('Check-ins API', function () {
       role: 'CONTRIBUTOR',
       email: `checkin.far.${Date.now()}@example.com`
     });
-    const farToken = generateToken(farUser);
+    const farSession = await createSessionForUser(farUser);
+    const farToken = farSession.access_token;
 
     try {
       const response = await request(app)
@@ -137,5 +139,66 @@ describe('Check-ins API', function () {
       await cleanupTestData({ userIds: [farUser.id] });
     }
   });
-});
 
+  it('should reject a check-in when GPS accuracy is too low', async function () {
+    const lowAccuracyUser = await createTestUser({
+      role: 'CONTRIBUTOR',
+      email: `checkin.accuracy.${Date.now()}@example.com`
+    });
+    const lowAccuracySession = await createSessionForUser(lowAccuracyUser);
+    const lowAccuracyToken = lowAccuracySession.access_token;
+
+    try {
+      const response = await request(app)
+        .post('/api/checkins')
+        .set('Authorization', `Bearer ${lowAccuracyToken}`)
+        .send({
+          site_id: site.id,
+          status: 'OPEN',
+          comment: 'Signal GPS trop faible',
+          latitude: 33.57315,
+          longitude: -7.58975,
+          accuracy: 120
+        })
+        .expect(400);
+
+      expect(response.body.success).to.equal(false);
+      expect(response.body.code).to.equal('CHECKIN_LOW_ACCURACY');
+    } finally {
+      await cleanupTestData({ userIds: [lowAccuracyUser.id] });
+    }
+  });
+
+  it('should reject a check-in when mocked location is detected', async function () {
+    const mockedUser = await createTestUser({
+      role: 'CONTRIBUTOR',
+      email: `checkin.mocked.${Date.now()}@example.com`
+    });
+    const mockedSession = await createSessionForUser(mockedUser);
+    const mockedToken = mockedSession.access_token;
+
+    try {
+      const response = await request(app)
+        .post('/api/checkins')
+        .set('Authorization', `Bearer ${mockedToken}`)
+        .send({
+          site_id: site.id,
+          status: 'OPEN',
+          comment: 'Position simulee',
+          latitude: 33.57315,
+          longitude: -7.58975,
+          accuracy: 10,
+          device_info: {
+            is_mocked_location: true,
+            visit_duration_seconds: 45
+          }
+        })
+        .expect(400);
+
+      expect(response.body.success).to.equal(false);
+      expect(response.body.code).to.equal('CHECKIN_MOCK_LOCATION');
+    } finally {
+      await cleanupTestData({ userIds: [mockedUser.id] });
+    }
+  });
+});

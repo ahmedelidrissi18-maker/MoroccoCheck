@@ -1,229 +1,207 @@
-# 🇲🇦 MoroccoCheck Backend API
+# MoroccoCheck Backend
 
-![Node.js](https://img.shields.io/badge/Node.js-20.x-brightgreen)
-![Express](https://img.shields.io/badge/Express-4.x-blue)
-![MySQL](https://img.shields.io/badge/MySQL-8.0-blue)
-![JWT](https://img.shields.io/badge/JWT-Authentication-orange)
-![License](https://img.shields.io/badge/License-MIT-green)
+API REST du projet MoroccoCheck.
 
-## 📋 Description
+Le backend centralise:
 
-API REST pour l'application MoroccoCheck - vérification communautaire des sites touristiques au Maroc.
+- authentification et sessions
+- gestion des utilisateurs
+- catalogue de sites touristiques
+- check-ins GPS
+- avis et reponses proprietaires
+- badges, stats et leaderboard
+- moderation admin
+- demandes `TOURIST -> CONTRIBUTOR`
 
-MoroccoCheck est une application mobile permettant aux touristes et aux habitants de vérifier la disponibilité et la qualité des sites touristiques marocains en temps réel. Grâce à la géolocalisation GPS, les utilisateurs peuvent valider leur présence sur site et partager leurs expériences avec la communauté.
+## Stack
 
-## 🎯 Fonctionnalités Principales
+- Node.js 20
+- Express 5
+- MySQL via `mysql2`
+- JWT
+- `bcryptjs`
+- Joi
+- Helmet
+- CORS
+- Morgan
 
-- **Authentification sécurisée** avec JWT et hashage bcrypt
-- **Vérification GPS** des sites touristiques avec validation de distance
-- **Système de notation** et d'avis communautaires
-- **Gamification** avec badges et classements par points
-- **Modération** des contenus avec différents niveaux d'accès
-- **Monitoring** complet avec endpoints de santé et statistiques
-
-## 🚀 Installation Rapide
-
-### Prérequis
-
-- Node.js v20.x LTS
-- MySQL v8.0
-- npm v10.x
-
-### Étapes d'installation
+## Demarrage Local
 
 ```bash
-# Clone le repo
-git clone https://github.com/votre-compte/moroccocheck-backend.git
-cd moroccocheck-backend
-
-# Installe les dépendances
+cd back-end
 npm install
-
-# Configure les variables d'environnement
 cp .env.example .env
-
-# Configure ta base de données MySQL
-# (voir la section Base de Données ci-dessous)
-
-# Initialise la base de données
-mysql -u root -p < sql/install_database.sql
-
-# Démarre le serveur
 npm run dev
 ```
 
-### Configuration de la Base de Données
+Le backend demarre par defaut sur:
 
-La base de données est déjà créée avec les scripts SQL fournis dans `Phase2_3_MPD_Scripts_SQL.md`. Les scripts incluent :
+- `http://127.0.0.1:5001`
+- `http://127.0.0.1:5001/api/health`
 
-- Création de la base de données et des tables
-- Insertion de données de test
-- Création de procédures stockées et fonctions
-- Création de déclencheurs pour la logique métier
-- Création de vues pour les statistiques
+## Base De Donnees
 
-## 📦 Stack Technique
+Le schema SQL est dans `sql/`.
 
-### Backend
-- **Node.js** v20.x LTS - Runtime JavaScript
-- **Express** v4.x - Framework web
-- **MySQL** v8.0 - Système de gestion de base de données
-- **bcrypt** - Hashage sécurisé des mots de passe
-- **jsonwebtoken** - Authentification JWT
-- **joi** - Validation des données
+Fichiers importants:
 
-### Outils de Développement
-- **nodemon** - Redémarrage automatique en développement
-- **morgan** - Logging des requêtes HTTP
-- **helmet** - Sécurité HTTP
-- **cors** - Gestion des CORS
+- `create_tables.sql`
+- `create_tables_part1.sql` a `create_tables_part4.sql`
+- `create_views.sql`
+- `create_triggers.sql`
+- `seed_data.sql`
+- `install_database.sql`
 
-## 🗄️ Base de Données
+La base locale attendue par defaut est:
 
-### Tables Principales
+- `DB_NAME=moroccocheck`
 
-- **`users`** - Gestion des utilisateurs avec rôles et niveaux
-- **`tourist_sites`** - Informations sur les sites touristiques
-- **`checkins`** - Vérifications GPS des utilisateurs sur site
-- **`reviews`** - Avis et notes des utilisateurs
-- **`badges`** - Système de gamification et récompenses
-- **`categories`** - Catégories de sites touristiques
-
-### Relations et Contraintes
-
-- Clés étrangères pour maintenir l'intégrité référentielle
-- Déclencheurs pour la logique métier (points, niveaux, modération)
-- Procédures stockées pour les opérations complexes
-- Vues pour les statistiques et rapports
-
-## 🔧 Scripts NPM
+## Scripts NPM
 
 ```bash
-npm start      # Lance le serveur en production
-npm run dev    # Lance avec nodemon (hot reload)
-npm test       # Lance les tests Jest (à configurer)
-npm run lint   # Vérifie le style de code (à configurer)
+npm start
+npm run dev
+npm test
+npm run seed:agadir
+npm run migrate
+npm run migrate:status
 ```
 
-## 🧪 Routes de Test
+## Variables D Environnement
 
-### Health Check
-- `GET /api/health` - Vérification de base du serveur
-- `GET /api/health/db` - Connexion et statistiques de la base de données
-- `GET /api/health/system` - Informations système et performance
+Voir [.env.example](/C:/Users/User/App_Touriste/back-end/.env.example).
 
-### Endpoints Legacy (à migrer)
-- `GET /api/test-db` - Test de connexion à la base de données
-- `GET /api/test-tables` - Liste des tables disponibles
-- `GET /api/db-stats` - Statistiques détaillées de la base de données
+Variables principales:
 
-## 📝 Variables d'Environnement
+- `PORT`
+- `NODE_ENV`
+- `DB_HOST`
+- `DB_USER`
+- `DB_PASSWORD`
+- `DB_NAME`
+- `DB_PORT`
+- `JWT_SECRET`
+- `JWT_EXPIRES_IN`
+- `REFRESH_TOKEN_TTL_DAYS`
+- `CORS_ALLOWED_ORIGINS`
+- `CORS_ALLOW_NO_ORIGIN`
+- `RATE_LIMIT_ENABLED`
+- `GOOGLE_CLIENT_IDS`
 
-Voir `.env.example` pour la configuration complète :
+Voir aussi:
+
+- [ENVIRONMENTS.md](/C:/Users/User/App_Touriste/back-end/ENVIRONMENTS.md)
+- [../ENVIRONMENTS.md](/C:/Users/User/App_Touriste/ENVIRONMENTS.md)
+- [sql/migrations/README.md](/C:/Users/User/App_Touriste/back-end/sql/migrations/README.md)
+
+## Routes Principales
+
+### Sante
+
+- `GET /api/health`
+- `GET /api/health/db`
+- `GET /api/health/system`
+
+### Auth
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/google`
+- `POST /api/auth/refresh`
+- `GET /api/auth/profile`
+- `PUT /api/auth/profile`
+- `POST /api/auth/logout`
+
+### Categories
+
+- `GET /api/categories`
+
+### Sites
+
+- `GET /api/sites`
+- `GET /api/sites/:id`
+- `GET /api/sites/:id/reviews`
+- `GET /api/sites/:id/photos`
+- `GET /api/sites/mine`
+- `GET /api/sites/mine/:id`
+- `POST /api/sites`
+- `PUT /api/sites/:id`
+- `DELETE /api/sites/:id`
+- `POST /api/sites/:id/claim`
+
+### Check-ins
+
+- `GET /api/checkins`
+- `GET /api/checkins/:id`
+- `POST /api/checkins`
+
+### Avis
+
+- `GET /api/reviews`
+- `GET /api/reviews/:id`
+- `POST /api/reviews`
+- `PUT /api/reviews/:id`
+- `DELETE /api/reviews/:id`
+- `POST /api/reviews/:id/owner-response`
+
+### Utilisateurs
+
+- `GET /api/badges`
+- `GET /api/leaderboard`
+- `GET /api/users/me`
+- `GET /api/users/me/badges`
+- `GET /api/users/me/stats`
+- `GET /api/users/me/contributor-request`
+- `POST /api/users/me/contributor-request`
+- `PUT /api/users/me/password`
+- `GET /api/users/:id`
+
+### Admin
+
+- `GET /api/admin/stats`
+- `GET /api/admin/sites/pending`
+- `GET /api/admin/sites/:id`
+- `PUT /api/admin/sites/:id/review`
+- `GET /api/admin/reviews/pending`
+- `GET /api/admin/reviews/:id`
+- `PUT /api/admin/reviews/:id/moderate`
+- `DELETE /api/admin/reviews/:id/photos/:photoId`
+- `GET /api/admin/users`
+- `PATCH /api/admin/users/:id/status`
+- `GET /api/admin/contributor-requests`
+- `PATCH /api/admin/contributor-requests/:id`
+
+## Tests
+
+Les tests backend utilisent Mocha, Chai et Supertest.
 
 ```bash
-# Configuration serveur
-PORT=5000
-NODE_ENV=development
-
-# Configuration base de données
-DB_HOST=localhost
-DB_USER=your_username
-DB_PASSWORD=your_password
-DB_NAME=moroccocheck
-DB_PORT=3306
-
-# Configuration JWT
-JWT_SECRET=your_jwt_secret_key
-JWT_EXPIRES_IN=7d
-
-# Configuration email (optionnel)
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_USER=your_email@gmail.com
-EMAIL_PASSWORD=your_app_password
+npm test
 ```
 
-## 🔐 Sécurité
+Certaines suites demandent une base de test reelle. Voir:
 
-- **Hashage bcrypt** pour les mots de passe
-- **JWT** avec expiration pour l'authentification
-- **Validation Joi** pour toutes les entrées utilisateur
-- **Middleware CORS** pour le contrôle des origines
-- **Helmet** pour la sécurité HTTP
-- **Middleware d'erreur** centralisé
+- [TEST_DATABASE_SETUP.md](/C:/Users/User/App_Touriste/back-end/TEST_DATABASE_SETUP.md)
 
-## 📊 Monitoring et Logging
+## Structure Technique
 
-- **Logging Morgan** pour le suivi des requêtes
-- **Health checks** pour la surveillance de l'API
-- **Statistiques système** et base de données
-- **Gestion d'erreurs** centralisée avec différents niveaux de détail selon l'environnement
-
-## 🏗️ Architecture
-
-```
-src/
-├── config/           # Configuration (base de données, constantes)
-├── middleware/       # Middleware (authentification, validation, erreurs)
-├── models/          # Modèles de données (à implémenter)
-├── routes/          # Routes API (health check)
-├── services/        # Logique métier (à implémenter)
-├── utils/           # Utilitaires (GPS, validation)
-└── controllers/     # Contrôleurs (à implémenter)
+```text
+back-end/
+|- server.js
+|- src/
+|  |- config/
+|  |- controllers/
+|  |- middleware/
+|  |- routes/
+|  |- services/
+|  |- utils/
+|- sql/
+|- tests/
 ```
 
-## 🤝 Contribuer
+## Notes
 
-1. Fork le projet
-2. Crée une branche feature (`git checkout -b feature/NouvelleFonctionnalite`)
-3. Commit tes changements (`git commit -m 'Ajoute nouvelle fonctionnalité'`)
-4. Push vers la branche (`git push origin feature/NouvelleFonctionnalite`)
-5. Ouvre une Pull Request
-
-## 📞 Support
-
-Pour toute question ou problème, merci de contacter l'équipe de développement.
-
-## 👥 Contributeurs
-
-- [Votre Nom] - Développeur Principal
-- [Nom du Co-développeur] - Contributeur
-
-## 📄 Licence
-
-MIT License
-
-Copyright (c) 2024 MoroccoCheck
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-## 🚀 Prochaines Étapes
-
-- [ ] Implémentation des contrôleurs d'utilisateurs
-- [ ] Création des contrôleurs de sites touristiques
-- [ ] Développement des contrôleurs de vérifications GPS
-- [ ] Intégration du système de notifications
-- [ ] Tests unitaires et d'intégration
-- [ ] Documentation API Swagger/OpenAPI
-- [ ] Déploiement en production
-
----
-
-**MoroccoCheck** - Vérifions ensemble la beauté du Maroc ! 🇲🇦✨
+- le backend est fonctionnel en local, mais la preparation production fait partie du plan de livraison
+- pour le scope metier et les roles, voir:
+  - [SCOPE_V1.md](/C:/Users/User/App_Touriste/SCOPE_V1.md)
+  - [ROLES_ET_PERMISSIONS.md](/C:/Users/User/App_Touriste/ROLES_ET_PERMISSIONS.md)

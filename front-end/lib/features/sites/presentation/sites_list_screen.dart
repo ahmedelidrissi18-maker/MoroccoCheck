@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../shared/models/site_category.dart';
+import '../../map/presentation/map_provider.dart';
 import 'site_card.dart';
+import 'sites/site.dart';
 import 'sites_provider.dart';
 
 class SitesListScreen extends StatefulWidget {
@@ -16,6 +18,29 @@ class SitesListScreen extends StatefulWidget {
 
 class _SitesListScreenState extends State<SitesListScreen> {
   final TextEditingController _searchController = TextEditingController();
+  bool _isApplyingNearbyMode = false;
+  static const List<SiteCurationOption> _curationOptions = [
+    SiteCurationOption(
+      key: 'famille',
+      label: 'Famille',
+      icon: Icons.family_restroom_outlined,
+    ),
+    SiteCurationOption(
+      key: 'romantique',
+      label: 'Romantique',
+      icon: Icons.nightlight_round,
+    ),
+    SiteCurationOption(
+      key: 'culture',
+      label: 'Culture',
+      icon: Icons.museum_outlined,
+    ),
+    SiteCurationOption(
+      key: 'luxe',
+      label: 'Luxe',
+      icon: Icons.diamond_outlined,
+    ),
+  ];
 
   @override
   void initState() {
@@ -51,16 +76,146 @@ class _SitesListScreenState extends State<SitesListScreen> {
     context.push('/sites/$siteId');
   }
 
+  void _toggleFavorite(String siteId) {
+    context.read<SitesProvider>().toggleFavorite(siteId);
+  }
+
   Future<void> _refreshSites() async {
     await context.read<SitesProvider>().getSites();
+  }
+
+  Future<void> _toggleNearbyMode(SitesProvider sitesProvider) async {
+    if (_isApplyingNearbyMode) return;
+
+    if (sitesProvider.isNearbyModeEnabled) {
+      await _disableNearbyMode(sitesProvider);
+      return;
+    }
+
+    await _enableNearbyMode(sitesProvider);
+  }
+
+  Future<void> _enableNearbyMode(
+    SitesProvider sitesProvider, {
+    bool showSuccessMessage = true,
+  }) async {
+    setState(() {
+      _isApplyingNearbyMode = true;
+    });
+
+    try {
+      final mapProvider = context.read<MapProvider>();
+      await mapProvider.getUserLocation();
+      if (!mounted) return;
+
+      final position = mapProvider.currentPosition;
+      if (position == null) {
+        throw Exception(
+          mapProvider.error ??
+              'Impossible de recuperer votre position pour le moment.',
+        );
+      }
+
+      await sitesProvider.enableNearbyMode(
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
+      if (!mounted || !showSuccessMessage) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Tri Proximite active par defaut. Les distances serveur sont maintenant visibles.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_normalizeErrorMessage(error.toString()))),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isApplyingNearbyMode = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _disableNearbyMode(SitesProvider sitesProvider) async {
+    setState(() {
+      _isApplyingNearbyMode = true;
+    });
+
+    try {
+      await sitesProvider.disableNearbyMode();
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Mode autour de moi retire.')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isApplyingNearbyMode = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _onSortChanged(
+    SiteSortOption option,
+    SitesProvider sitesProvider,
+  ) async {
+    if (option == SiteSortOption.proximity &&
+        !sitesProvider.isNearbyModeEnabled) {
+      await _enableNearbyMode(sitesProvider, showSuccessMessage: false);
+      return;
+    }
+
+    sitesProvider.setSortOption(option);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Explorer')),
+      floatingActionButton: Consumer<SitesProvider>(
+        builder: (context, sitesProvider, child) {
+          return FloatingActionButton.extended(
+            onPressed: _isApplyingNearbyMode
+                ? null
+                : () => _toggleNearbyMode(sitesProvider),
+            backgroundColor: sitesProvider.isNearbyModeEnabled
+                ? AppColors.primaryDeep
+                : AppColors.primary,
+            foregroundColor: Colors.white,
+            icon: _isApplyingNearbyMode
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : Icon(
+                    sitesProvider.isNearbyModeEnabled
+                        ? Icons.near_me_rounded
+                        : Icons.my_location_rounded,
+                  ),
+            label: Text(
+              sitesProvider.isNearbyModeEnabled
+                  ? 'Proximite active'
+                  : 'Autour de moi',
+            ),
+          );
+        },
+      ),
       body: Consumer<SitesProvider>(
         builder: (context, sitesProvider, child) {
+          final nearestSite = _nearestSite(sitesProvider.filteredSites);
+
           if (sitesProvider.isLoading && sitesProvider.sites.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -99,7 +254,7 @@ class _SitesListScreenState extends State<SitesListScreen> {
           return RefreshIndicator(
             onRefresh: _refreshSites,
             child: ListView(
-              padding: const EdgeInsets.only(bottom: 28),
+              padding: const EdgeInsets.only(bottom: 108),
               children: [
                 _buildHeroCard(sitesProvider),
                 Padding(
@@ -137,6 +292,23 @@ class _SitesListScreenState extends State<SitesListScreen> {
                     ),
                   ),
                 ),
+                _buildAdvancedFilters(sitesProvider),
+                if (sitesProvider.recommendedSites.isNotEmpty)
+                  _buildSiteRail(
+                    title: 'Suggestions pour vous',
+                    subtitle:
+                        'Des lieux deduits de vos favoris, de vos visites recentes et des meilleurs scores.',
+                    sites: sitesProvider.recommendedSites.take(6).toList(),
+                    sitesProvider: sitesProvider,
+                  ),
+                if (sitesProvider.recentViewedSites.isNotEmpty)
+                  _buildSiteRail(
+                    title: 'Recemment consultes',
+                    subtitle:
+                        'Retrouvez rapidement les derniers lieux ouverts pendant votre navigation.',
+                    sites: sitesProvider.recentViewedSites.take(6).toList(),
+                    sitesProvider: sitesProvider,
+                  ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                   child: Text(
@@ -225,6 +397,49 @@ class _SitesListScreenState extends State<SitesListScreen> {
                   ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 18, 16, 10),
+                  child: Text(
+                    'Collections premium',
+                    style: AppTextStyles.bodyStrong.copyWith(fontSize: 18),
+                  ),
+                ),
+                SizedBox(
+                  height: 54,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    children: [
+                      _buildCategoryChip(
+                        label: 'Tout voir',
+                        isSelected: sitesProvider.selectedCurationKey == null,
+                        onTap: () => sitesProvider.setCuration(null),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildCategoryChip(
+                        label: 'Mes favoris',
+                        icon: Icons.favorite_border_rounded,
+                        isSelected: sitesProvider.showFavoritesOnly,
+                        onTap: () => sitesProvider.setFavoritesOnly(
+                          !sitesProvider.showFavoritesOnly,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ..._curationOptions.map(
+                        (option) => Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: _buildCategoryChip(
+                            label: option.label,
+                            icon: option.icon,
+                            isSelected:
+                                sitesProvider.selectedCurationKey == option.key,
+                            onTap: () => sitesProvider.setCuration(option.key),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 10),
                   child: Row(
                     children: [
                       Text(
@@ -235,6 +450,13 @@ class _SitesListScreenState extends State<SitesListScreen> {
                       if (sitesProvider.searchQuery.isNotEmpty ||
                           sitesProvider.selectedCategoryId != null ||
                           sitesProvider.selectedSubcategoryId != null ||
+                          sitesProvider.selectedCurationKey != null ||
+                          sitesProvider.selectedCity != null ||
+                          sitesProvider.minimumRating > 0 ||
+                          sitesProvider.isNearbyModeEnabled ||
+                          sitesProvider.selectedSort !=
+                              SiteSortOption.recommended ||
+                          sitesProvider.showFavoritesOnly ||
                           (sitesProvider.selectedSubcategory != null &&
                               sitesProvider.selectedSubcategory!.isNotEmpty))
                         TextButton.icon(
@@ -249,12 +471,24 @@ class _SitesListScreenState extends State<SitesListScreen> {
                     ],
                   ),
                 ),
+                if (sitesProvider.isNearbyModeEnabled && nearestSite != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: _buildNearbySummaryCard(
+                      sitesProvider: sitesProvider,
+                      nearestSite: nearestSite,
+                    ),
+                  ),
                 if (sitesProvider.filteredSites.isEmpty)
                   _buildEmptyState()
                 else
                   ...sitesProvider.filteredSites.map(
-                    (site) =>
-                        SiteCard(site: site, onTap: () => _onSiteTap(site.id)),
+                    (site) => SiteCard(
+                      site: site,
+                      onTap: () => _onSiteTap(site.id),
+                      isFavorite: sitesProvider.isFavorite(site.id),
+                      onToggleFavorite: () => _toggleFavorite(site.id),
+                    ),
                   ),
               ],
             ),
@@ -265,6 +499,8 @@ class _SitesListScreenState extends State<SitesListScreen> {
   }
 
   Widget _buildHeroCard(SitesProvider sitesProvider) {
+    final nearestSite = _nearestSite(sitesProvider.filteredSites);
+
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(22),
@@ -296,7 +532,9 @@ class _SitesListScreenState extends State<SitesListScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Les adresses qui valent le detour a ${sitesProvider.primaryLocationLabel}',
+                  sitesProvider.isNearbyModeEnabled
+                      ? 'Les adresses les plus proches de vous a ${sitesProvider.primaryLocationLabel}'
+                      : 'Les adresses qui valent le detour a ${sitesProvider.primaryLocationLabel}',
                   style: AppTextStyles.heading2.copyWith(
                     fontSize: 26,
                     color: Colors.white,
@@ -307,7 +545,9 @@ class _SitesListScreenState extends State<SitesListScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Parcourez les lieux verifies, filtrez comme dans une app de voyage et gardez sous la main les spots les mieux notes.',
+            sitesProvider.isNearbyModeEnabled
+                ? 'Votre position alimente maintenant le tri serveur pour faire remonter les lieux les plus proches, avec une distance visible dans chaque fiche.'
+                : 'Parcourez les lieux verifies, filtrez comme dans une app de voyage et gardez sous la main les spots les mieux notes.',
             style: AppTextStyles.body.copyWith(
               color: Colors.white.withValues(alpha: 0.78),
             ),
@@ -326,13 +566,548 @@ class _SitesListScreenState extends State<SitesListScreen> {
                 label: '${sitesProvider.sites.length} lieux recommandes',
               ),
               _summaryPill(
+                icon: Icons.favorite_outline,
+                label: '${sitesProvider.favoritesCount} favoris sauvegardes',
+              ),
+              _summaryPill(
                 icon: Icons.route_outlined,
-                label: sitesProvider.secondaryLocationLabel,
+                label: sitesProvider.isNearbyModeEnabled &&
+                        nearestSite != null
+                    ? 'Plus proche ${nearestSite.formattedDistance}'
+                    : sitesProvider.selectedCurationKey == null
+                    ? sitesProvider.secondaryLocationLabel
+                    : 'Tri ${_curationLabelFor(sitesProvider.selectedCurationKey!)}',
               ),
             ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildAdvancedFilters(SitesProvider sitesProvider) {
+    final nearestSite = _nearestSite(sitesProvider.filteredSites);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Filtres intelligents',
+              style: AppTextStyles.bodyStrong.copyWith(fontSize: 17),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              sitesProvider.isNearbyModeEnabled
+                  ? 'La proximite serveur est active. Vous pouvez continuer a filtrer sans perdre les distances.'
+                  : 'Affinez par ville, note minimum et mode de tri.',
+              style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF4FBF8),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: sitesProvider.isNearbyModeEnabled
+                      ? AppColors.primary
+                      : AppColors.border,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: sitesProvider.isNearbyModeEnabled
+                              ? AppColors.primaryDeep
+                              : AppColors.surface,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Icon(
+                          sitesProvider.isNearbyModeEnabled
+                              ? Icons.near_me_rounded
+                              : Icons.my_location_outlined,
+                          color: sitesProvider.isNearbyModeEnabled
+                              ? Colors.white
+                              : AppColors.primaryDeep,
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Autour de moi',
+                              style: AppTextStyles.bodyStrong.copyWith(
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              sitesProvider.isNearbyModeEnabled
+                                  ? 'Le backend renvoie maintenant les distances serveur pour chaque site.'
+                                  : 'Activez votre position pour voir les lieux a proximite et debloquer le tri Proximite.',
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      if (_isApplyingNearbyMode)
+                        const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2.2),
+                        )
+                      else if (sitesProvider.isNearbyModeEnabled)
+                        OutlinedButton.icon(
+                          onPressed: () => _toggleNearbyMode(sitesProvider),
+                          icon: const Icon(Icons.close_rounded, size: 16),
+                          label: const Text('Retirer'),
+                        )
+                      else
+                        ElevatedButton.icon(
+                          onPressed: () => _toggleNearbyMode(sitesProvider),
+                          icon: const Icon(Icons.my_location, size: 16),
+                          label: const Text('Activer'),
+                        ),
+                    ],
+                  ),
+                  if (sitesProvider.isNearbyModeEnabled ||
+                      sitesProvider.hasServerDistanceData) ...[
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        if (sitesProvider.selectedSort ==
+                            SiteSortOption.proximity)
+                          _buildModePill(
+                            icon: Icons.swap_vert_rounded,
+                            label: 'Tri Proximite par defaut',
+                            highlighted: true,
+                          ),
+                        if (sitesProvider.nearbyResultsCount > 0)
+                          _buildModePill(
+                            icon: Icons.route_outlined,
+                            label:
+                                '${sitesProvider.nearbyResultsCount} distances visibles',
+                          ),
+                        if (nearestSite != null)
+                          _buildModePill(
+                            icon: Icons.near_me_outlined,
+                            label: 'Plus proche ${nearestSite.formattedDistance}',
+                          ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String?>(
+                    initialValue: sitesProvider.selectedCity,
+                    decoration: const InputDecoration(
+                      labelText: 'Ville',
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                    ),
+                    items: <DropdownMenuItem<String?>>[
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('Toutes les villes'),
+                      ),
+                      ...sitesProvider.availableCities.map(
+                        (city) => DropdownMenuItem<String?>(
+                          value: city,
+                          child: Text(city),
+                        ),
+                      ),
+                    ],
+                    onChanged: (value) => sitesProvider.setCityFilter(value),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<SiteSortOption>(
+                    initialValue: sitesProvider.selectedSort,
+                    decoration: const InputDecoration(
+                      labelText: 'Tri',
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                    ),
+                    items: [
+                      DropdownMenuItem(
+                        value: SiteSortOption.recommended,
+                        child: Text('Recommande'),
+                      ),
+                      DropdownMenuItem(
+                        value: SiteSortOption.proximity,
+                        child: Text(
+                          sitesProvider.isNearbyModeEnabled
+                              ? 'Proximite - par defaut'
+                              : 'Proximite',
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: SiteSortOption.rating,
+                        child: Text('Meilleure note'),
+                      ),
+                      DropdownMenuItem(
+                        value: SiteSortOption.popularity,
+                        child: Text('Popularite'),
+                      ),
+                      DropdownMenuItem(
+                        value: SiteSortOption.freshness,
+                        child: Text('Fraicheur'),
+                      ),
+                      DropdownMenuItem(
+                        value: SiteSortOption.alphabetical,
+                        child: Text('Alphabetique'),
+                      ),
+                    ],
+                    onChanged: (value) async {
+                      if (value != null) {
+                        await _onSortChanged(value, sitesProvider);
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Note minimum',
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.primaryDeep,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                activeTrackColor: AppColors.primary,
+                inactiveTrackColor: AppColors.border,
+                thumbColor: AppColors.primaryDeep,
+                overlayColor: AppColors.primary.withValues(alpha: 0.12),
+              ),
+              child: Slider(
+                min: 0,
+                max: 5,
+                divisions: 5,
+                value: sitesProvider.minimumRating,
+                label: sitesProvider.minimumRating == 0
+                    ? 'Toutes'
+                    : '${sitesProvider.minimumRating.toStringAsFixed(0)}+',
+                onChanged: sitesProvider.setMinimumRating,
+              ),
+            ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children:
+                  const [
+                    _RatingChip(value: 0, label: 'Toutes'),
+                    _RatingChip(value: 3, label: '3+'),
+                    _RatingChip(value: 4, label: '4+'),
+                    _RatingChip(value: 5, label: '5'),
+                  ].map((chip) {
+                    final isSelected =
+                        sitesProvider.minimumRating == chip.value;
+                    return FilterChip(
+                      label: Text(chip.label),
+                      selected: isSelected,
+                      onSelected: (_) =>
+                          sitesProvider.setMinimumRating(chip.value),
+                      backgroundColor: AppColors.surfaceAlt,
+                      selectedColor: AppColors.primaryDeep,
+                      labelStyle: AppTextStyles.caption.copyWith(
+                        color: isSelected
+                            ? Colors.white
+                            : AppColors.primaryDeep,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    );
+                  }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSiteRail({
+    required String title,
+    required String subtitle,
+    required List<Site> sites,
+    required SitesProvider sitesProvider,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+          child: Text(
+            title,
+            style: AppTextStyles.bodyStrong.copyWith(fontSize: 18),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+          child: Text(
+            subtitle,
+            style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
+          ),
+        ),
+        SizedBox(
+          height: 210,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: sites.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final site = sites[index];
+              return _buildCompactSiteCard(site, sitesProvider);
+            },
+          ),
+        ),
+        const SizedBox(height: 14),
+      ],
+    );
+  }
+
+  Widget _buildCompactSiteCard(Site site, SitesProvider sitesProvider) {
+    return SizedBox(
+      width: 220,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: () => _onSiteTap(site.id),
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: AppColors.border),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 14,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(22),
+                      ),
+                      child: SizedBox(
+                        height: 110,
+                        width: double.infinity,
+                        child: site.imageUrl.isNotEmpty
+                            ? Image.network(
+                                site.imageUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    _buildCompactPlaceholder(),
+                              )
+                            : _buildCompactPlaceholder(),
+                      ),
+                    ),
+                    if (site.hasDistance)
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0F4C3A)
+                                .withValues(alpha: 0.92),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.near_me_outlined,
+                                size: 13,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                site.formattedDistance,
+                                style: AppTextStyles.caption.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: InkWell(
+                        onTap: () => _toggleFavorite(site.id),
+                        borderRadius: BorderRadius.circular(999),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.92),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            sitesProvider.isFavorite(site.id)
+                                ? Icons.favorite_rounded
+                                : Icons.favorite_border_rounded,
+                            size: 18,
+                            color: sitesProvider.isFavorite(site.id)
+                                ? AppColors.error
+                                : AppColors.primaryDeep,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        site.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.body.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        [
+                          if (site.city.isNotEmpty) site.city,
+                          if (site.category.isNotEmpty) site.category,
+                        ].join(' • '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                      if (site.hasDistance) ...[
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE8F3FF),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.route_outlined,
+                                size: 14,
+                                color: AppColors.primaryDeep,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                site.formattedDistance,
+                                style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.primaryDeep,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.star_rounded,
+                            size: 16,
+                            color: AppColors.accentGold,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            site.rating.toStringAsFixed(1),
+                            style: AppTextStyles.caption.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const Spacer(),
+                          if (site.hasDistance)
+                            Text(
+                              'Serveur',
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.primaryDeep,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            )
+                          else
+                            Text(
+                              '${site.freshnessScore}% fiable',
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.primaryDeep,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactPlaceholder() {
+    return Container(
+      color: Colors.grey[200],
+      alignment: Alignment.center,
+      child: Icon(Icons.place_outlined, color: Colors.grey[500]),
     );
   }
 
@@ -385,10 +1160,18 @@ class _SitesListScreenState extends State<SitesListScreen> {
 
   Widget _buildCategoryChip({
     required String label,
+    IconData? icon,
     required bool isSelected,
     required VoidCallback onTap,
   }) {
     return FilterChip(
+      avatar: icon == null
+          ? null
+          : Icon(
+              icon,
+              size: 16,
+              color: isSelected ? Colors.white : AppColors.primaryDeep,
+            ),
       label: Text(label),
       selected: isSelected,
       onSelected: (_) => onTap(),
@@ -409,4 +1192,126 @@ class _SitesListScreenState extends State<SitesListScreen> {
       ),
     );
   }
+
+  String _curationLabelFor(String key) {
+    for (final option in _curationOptions) {
+      if (option.key == key) {
+        return option.label.toLowerCase();
+      }
+    }
+    return key;
+  }
+
+  Widget _buildNearbySummaryCard({
+    required SitesProvider sitesProvider,
+    required Site nearestSite,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7FBFF),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFD6EAFD)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.primaryDeep,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: const Icon(
+              Icons.near_me_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Tri Proximite actif par defaut',
+                  style: AppTextStyles.bodyStrong.copyWith(fontSize: 16),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${sitesProvider.nearbyResultsCount} lieu${sitesProvider.nearbyResultsCount > 1 ? 'x' : ''} avec distance. Le plus proche est ${nearestSite.name} a ${nearestSite.formattedDistance}.',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModePill({
+    required IconData icon,
+    required String label,
+    bool highlighted = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: highlighted ? AppColors.primaryDeep : AppColors.surface,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: highlighted ? AppColors.primaryDeep : AppColors.border,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 15,
+            color: highlighted ? Colors.white : AppColors.primaryDeep,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: AppTextStyles.caption.copyWith(
+              color: highlighted ? Colors.white : AppColors.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Site? _nearestSite(List<Site> sites) {
+    final distanceAwareSites = sites.where((site) => site.hasDistance).toList()
+      ..sort(
+        (a, b) => (a.distanceMeters ?? double.infinity).compareTo(
+          b.distanceMeters ?? double.infinity,
+        ),
+      );
+
+    if (distanceAwareSites.isEmpty) {
+      return null;
+    }
+
+    return distanceAwareSites.first;
+  }
+
+  String _normalizeErrorMessage(String message) {
+    if (message.startsWith('Exception: ')) {
+      return message.substring('Exception: '.length);
+    }
+    return message;
+  }
+}
+
+class _RatingChip {
+  final double value;
+  final String label;
+
+  const _RatingChip({required this.value, required this.label});
 }

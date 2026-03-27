@@ -58,3 +58,22 @@ export function errorResponse(res, message, statusCode = 500, code = null, detai
   if (details !== undefined && details !== null) body.details = details;
   res.status(statusCode).json(body);
 }
+
+export function validationErrorResponse(res, error, statusCode = 400) {
+  const validationItems = (error?.details || []).map((detail) => ({
+    message: detail.message,
+    path: Array.isArray(detail.path) ? detail.path.join('.') : String(detail.path || ''),
+    type: detail.type
+  }));
+
+  return res.status(statusCode).json({
+    success: false,
+    message: 'Validation echouee',
+    code: 'VALIDATION_ERROR',
+    errors: validationItems.map((item) => item.message),
+    details: {
+      validation: validationItems
+    },
+    timestamp: new Date().toISOString()
+  });
+}

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/network/api_service.dart';
@@ -10,6 +12,7 @@ import 'models/site_photo.dart';
 import 'reviews_list.dart';
 import 'sites/site.dart';
 import 'sites_provider.dart';
+import 'widgets/site_detail_sections.dart';
 
 class SiteDetailScreen extends StatefulWidget {
   final String? siteId;
@@ -26,7 +29,6 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
   static const Set<String> _checkinAllowedRoles = <String>{
     'CONTRIBUTOR',
     'PROFESSIONAL',
-    'MODERATOR',
     'ADMIN',
   };
 
@@ -34,7 +36,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
   late TabController _tabController;
 
   Site? _site;
-  List<SitePhoto> _photos = [];
+  List<SitePhoto> _photos = <SitePhoto>[];
   bool _isLoading = true;
   bool _isPhotosLoading = true;
   String? _error;
@@ -70,6 +72,10 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
         _site = cachedSite;
         _isLoading = false;
       });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<SitesProvider>().recordSiteVisit(cachedSite);
+      });
     }
 
     try {
@@ -80,6 +86,10 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
         _site = site;
         _error = null;
         _isLoading = false;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<SitesProvider>().recordSiteVisit(site);
       });
     } catch (e) {
       if (!mounted) return;
@@ -112,7 +122,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
       if (!mounted) return;
 
       setState(() {
-        _photos = [];
+        _photos = <SitePhoto>[];
         _isPhotosLoading = false;
       });
     }
@@ -136,6 +146,51 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
     await _loadSite();
   }
 
+  Future<void> _openItinerary(Site site) async {
+    final destinationLabel = [
+      site.name,
+      if (site.city.isNotEmpty) site.city,
+    ].join(', ');
+    final mapsUri = Uri.https('www.google.com', '/maps/dir/', <String, String>{
+      'api': '1',
+      'destination': '${site.latitude},${site.longitude}',
+      'travelmode': 'driving',
+      'dir_action': 'navigate',
+    });
+
+    final fallbackUri = Uri.https(
+      'www.openstreetmap.org',
+      '/directions',
+      <String, String>{
+        'engine': 'fossgis_osrm_car',
+        'route': '${site.latitude},${site.longitude}',
+      },
+    );
+
+    final launched = await launchUrl(
+      mapsUri,
+      mode: LaunchMode.externalApplication,
+    );
+
+    if (launched || !mounted) return;
+
+    final fallbackLaunched = await launchUrl(
+      fallbackUri,
+      mode: LaunchMode.externalApplication,
+    );
+
+    if (fallbackLaunched || !mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Impossible d ouvrir un itineraire pour $destinationLabel.',
+        ),
+        backgroundColor: AppColors.error,
+      ),
+    );
+  }
+
   bool _canUserSubmitCheckin(User? user) {
     return user != null && _checkinAllowedRoles.contains(user.role);
   }
@@ -143,6 +198,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
+    final sitesProvider = context.watch<SitesProvider>();
     final currentUser = authProvider.user;
     final isAuthenticated = authProvider.isAuthenticated;
     final canSubmitCheckin = _canUserSubmitCheckin(currentUser);
@@ -192,6 +248,10 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
 
     final site = _site!;
     final freshnessColor = AppColors.getMarkerColor(site.freshnessScore);
+    final relatedSites = sitesProvider.recommendSites(
+      excludeSiteId: site.id,
+      limit: 4,
+    );
 
     return Scaffold(
       body: RefreshIndicator(
@@ -204,6 +264,17 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               actions: [
+                IconButton(
+                  tooltip: sitesProvider.isFavorite(site.id)
+                      ? 'Retirer des favoris'
+                      : 'Ajouter aux favoris',
+                  onPressed: () => sitesProvider.toggleFavorite(site.id),
+                  icon: Icon(
+                    sitesProvider.isFavorite(site.id)
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                  ),
+                ),
                 IconButton(
                   tooltip: 'Rafraichir',
                   onPressed: _refreshSite,
@@ -219,9 +290,9 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
                             site.imageUrl,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) =>
-                                _buildPlaceholderImage(),
+                                const SiteDetailPlaceholderImage(),
                           )
-                        : _buildPlaceholderImage(),
+                        : const SiteDetailPlaceholderImage(),
                     DecoratedBox(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
@@ -245,11 +316,11 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
                             spacing: 8,
                             runSpacing: 8,
                             children: [
-                              _heroChip(
+                              SiteDetailHeroChip(
                                 icon: Icons.category_outlined,
                                 label: site.category,
                               ),
-                              _heroChip(
+                              SiteDetailHeroChip(
                                 icon: Icons.place_outlined,
                                 label: site.city.isNotEmpty
                                     ? site.city
@@ -288,19 +359,19 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
                       spacing: 12,
                       runSpacing: 12,
                       children: [
-                        _MetricCard(
+                        SiteDetailMetricCard(
                           icon: Icons.star_rounded,
                           label: 'Note',
                           value: site.rating.toStringAsFixed(1),
                           accentColor: Colors.amber.shade700,
                         ),
-                        _MetricCard(
+                        SiteDetailMetricCard(
                           icon: Icons.verified_outlined,
                           label: 'Fraicheur',
                           value: '${site.freshnessScore}%',
                           accentColor: freshnessColor,
                         ),
-                        _MetricCard(
+                        SiteDetailMetricCard(
                           icon: Icons.photo_library_outlined,
                           label: 'Photos',
                           value: '${_photos.length}',
@@ -311,38 +382,106 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
                   ),
                   Padding(
                     padding: const EdgeInsets.all(16),
-                    child: Row(
+                    child: Column(
                       children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: canSubmitCheckin ? _handleCheckIn : null,
-                            icon: const Icon(Icons.check_circle_outline),
-                            label: const Text('Check-in'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: canSubmitCheckin
+                                    ? _handleCheckIn
+                                    : null,
+                                icon: const Icon(Icons.check_circle_outline),
+                                label: const Text('Check-in'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: isAuthenticated
-                                ? _handleAddReview
-                                : null,
-                            icon: const Icon(Icons.rate_review),
-                            label: const Text('Ajouter un avis'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.primary,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              side: const BorderSide(color: AppColors.primary),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: isAuthenticated
+                                    ? _handleAddReview
+                                    : null,
+                                icon: const Icon(Icons.rate_review),
+                                label: const Text('Ajouter un avis'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.primary,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  side: const BorderSide(
+                                    color: AppColors.primary,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
                               ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () => sitesProvider.toggleFavorite(site.id),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceAlt,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  sitesProvider.isFavorite(site.id)
+                                      ? Icons.favorite_rounded
+                                      : Icons.favorite_border_rounded,
+                                  color: sitesProvider.isFavorite(site.id)
+                                      ? AppColors.error
+                                      : AppColors.primaryDeep,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        sitesProvider.isFavorite(site.id)
+                                            ? 'Dans vos favoris'
+                                            : 'Ajouter a vos favoris',
+                                        style: AppTextStyles.body.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Retrouvez ce lieu plus vite et influencez vos recommandations.',
+                                        style: AppTextStyles.caption.copyWith(
+                                          color: Colors.grey[700],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Text(
+                                  '${site.favoritesCount + (sitesProvider.isFavorite(site.id) ? 1 : 0)}',
+                                  style: AppTextStyles.bodyStrong.copyWith(
+                                    color: AppColors.primaryDeep,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -479,334 +618,25 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
                     child: TabBarView(
                       controller: _tabController,
                       children: [
-                        _buildInfoTab(site),
+                        SiteDetailInfoTab(
+                          site: site,
+                          relatedSites: relatedSites,
+                          onViewMap: () => context.push('/map'),
+                          onOpenItinerary: () => _openItinerary(site),
+                          onRelatedSiteTap: (relatedSite) =>
+                              context.push('/sites/${relatedSite.id}'),
+                        ),
                         ReviewsList(siteId: site.id),
-                        _buildPhotosTab(),
+                        SiteDetailPhotosTab(
+                          isLoading: _isPhotosLoading,
+                          photos: _photos,
+                        ),
                       ],
                     ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPlaceholderImage() {
-    return Container(
-      height: 300,
-      width: double.infinity,
-      color: Colors.grey[300],
-      child: Icon(Icons.place, size: 64, color: Colors.grey[600]),
-    );
-  }
-
-  Widget _heroChip({required IconData icon, required String label}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 15, color: Colors.white),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: AppTextStyles.caption.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoTab(Site site) {
-    final location = [
-      site.address,
-      site.city,
-      site.region,
-    ].where((item) => item.isNotEmpty).join(', ');
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _InfoSection(
-            title: 'Description',
-            child: Text(
-              site.description.isNotEmpty
-                  ? site.description
-                  : 'Aucune description disponible pour ce lieu.',
-              style: AppTextStyles.body.copyWith(
-                color: Colors.grey[700],
-                height: 1.6,
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          _InfoSection(
-            title: 'Localisation',
-            child: Column(
-              children: [
-                _buildDetailRow(
-                  Icons.pin_drop_outlined,
-                  'Adresse',
-                  location.isNotEmpty ? location : 'Non renseignee',
-                ),
-                _buildDetailRow(
-                  Icons.my_location_outlined,
-                  'Coordonnees',
-                  '${site.latitude.toStringAsFixed(4)}, ${site.longitude.toStringAsFixed(4)}',
-                ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: () => context.push('/map'),
-                    icon: const Icon(Icons.map_outlined),
-                    label: const Text('Voir sur la carte'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          _InfoSection(
-            title: 'Resume',
-            child: Column(
-              children: [
-                _buildDetailRow(
-                  Icons.category_outlined,
-                  'Categorie',
-                  site.category,
-                ),
-                _buildDetailRow(
-                  Icons.star_outline,
-                  'Note moyenne',
-                  site.rating.toStringAsFixed(1),
-                ),
-                _buildDetailRow(
-                  Icons.verified_outlined,
-                  'Score de fraicheur',
-                  '${site.freshnessScore}%',
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 18, color: AppColors.primary),
-          const SizedBox(width: 10),
-          SizedBox(
-            width: 95,
-            child: Text(
-              label,
-              style: AppTextStyles.body.copyWith(color: Colors.grey[600]),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPhotosTab() {
-    if (_isPhotosLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_photos.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.photo_library_outlined,
-                size: 56,
-                color: Colors.grey[400],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Aucune photo disponible',
-                style: AppTextStyles.body.copyWith(color: Colors.grey[600]),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Le lieu est deja accessible, mais la galerie sera plus riche quand la communaute ajoutera davantage de contenus.',
-                textAlign: TextAlign.center,
-                style: AppTextStyles.caption.copyWith(color: Colors.grey[500]),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: _photos.length,
-      itemBuilder: (context, index) {
-        final photo = _photos[index];
-        final imageUrl = photo.thumbnailUrl?.isNotEmpty == true
-            ? photo.thumbnailUrl!
-            : photo.imageUrl;
-
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    _buildPhotoPlaceholder(),
-              ),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.center,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.35),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-              if (photo.isPrimary)
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      'Principale',
-                      style: TextStyle(color: Colors.white, fontSize: 11),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildPhotoPlaceholder() {
-    return Container(
-      color: Colors.grey[300],
-      child: Icon(Icons.image, size: 48, color: Colors.grey[600]),
-    );
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color accentColor;
-
-  const _MetricCard({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.accentColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 112,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: accentColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: accentColor, size: 18),
-          ),
-          const SizedBox(height: 12),
-          Text(value, style: AppTextStyles.heading2.copyWith(fontSize: 22)),
-          Text(
-            label,
-            style: AppTextStyles.caption.copyWith(color: Colors.grey[600]),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoSection extends StatelessWidget {
-  final String title;
-  final Widget child;
-
-  const _InfoSection({required this.title, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: AppTextStyles.heading2.copyWith(fontSize: 20)),
-            const SizedBox(height: 12),
-            child,
           ],
         ),
       ),

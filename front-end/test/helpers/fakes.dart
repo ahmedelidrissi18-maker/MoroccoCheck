@@ -22,6 +22,14 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<User> loginWithGoogle() async {
+    if (currentUser != null) {
+      return currentUser!;
+    }
+    throw UnimplementedError();
+  }
+
+  @override
   Future<User> register(
     String firstName,
     String lastName,

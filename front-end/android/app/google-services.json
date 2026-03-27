@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "212182583004",
+    "project_id": "apptouriste",
+    "storage_bucket": "apptouriste.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:212182583004:android:654fe9ede7579c53bf5619",
+        "android_client_info": {
+          "package_name": "com.example.mor_che_frontend"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "212182583004-0j83u3stotugoodfhf6avhepb8teui1k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBVlobhg7j6G0I53FotEHQqc8NxaNicedA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "212182583004-0j83u3stotugoodfhf6avhepb8teui1k.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:212182583004:android:87093e234f8f33c7bf5619",
+        "android_client_info": {
+          "package_name": "com.moroccocheck.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "212182583004-0j83u3stotugoodfhf6avhepb8teui1k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBVlobhg7j6G0I53FotEHQqc8NxaNicedA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "212182583004-0j83u3stotugoodfhf6avhepb8teui1k.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

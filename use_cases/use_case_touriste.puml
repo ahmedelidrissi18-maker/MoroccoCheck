@@ -1,0 +1,76 @@
+@startuml use_case_touriste
+!define TOURIST_COLOR #4A90E2
+!define PRIMARY_COLOR #2ECC71
+!define SECONDARY_COLOR #95A5A6
+
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam defaultFontName Arial
+
+skinparam actor {
+    BackgroundColor TOURIST_COLOR
+    BorderColor #2C3E50
+}
+
+skinparam usecase {
+    BackgroundColor #FFFFFF
+    BorderColor #2C3E50
+    ArrowColor #2C3E50
+}
+
+left to right direction
+
+actor "👤 Touriste" as Touriste #4A90E2
+
+rectangle "Système MoroccoCheck" {
+    
+    package "Module Authentification" #F8F9FA {
+        usecase "CU01\nS'inscrire" as CU01
+        usecase "CU02\nSe connecter" as CU02
+    }
+    
+    package "Module Consultation" #E8F5E9 {
+        usecase "CU05\nConsulter la carte\ninteractive" as CU05 #2ECC71
+        usecase "CU06\nRechercher un site\ntouristique" as CU06
+        usecase "CU07\nFiltrer les sites\npar catégorie" as CU07
+        usecase "CU08\nConsulter les détails\nd'un site" as CU08
+        usecase "CU09\nObtenir un itinéraire\nvers un site" as CU09
+        usecase "CU13\nMarquer un site\ncomme favori" as CU13
+    }
+}
+
+actor "🗺️ Google Maps API" as GoogleMaps #4A90E2
+
+' Relations Touriste
+Touriste --> CU01
+Touriste --> CU02
+Touriste --> CU05
+Touriste --> CU06
+Touriste --> CU07
+Touriste --> CU08
+Touriste --> CU09
+Touriste --> CU13
+
+' Relations avec Google Maps
+CU05 ..> GoogleMaps : <<use>>
+CU09 ..> GoogleMaps : <<use>>
+
+' Relations include/extend
+CU06 .> CU05 : <<include>>
+CU07 .> CU05 : <<include>>
+
+note right of Touriste
+  **Type:** Utilisateur visiteur
+  **Inscription:** Optionnelle
+  **Mode:** Visiteur disponible
+end note
+
+note bottom of GoogleMaps
+  **Service externe**
+  - Cartes interactives
+  - Calcul d'itinéraires
+  - Géolocalisation
+end note
+
+@enduml

@@ -9,10 +9,6 @@ export async function listCategories(query = {}) {
   const filters = ['c.is_active = TRUE'];
   const params = [];
 
-  if (topLevelOnly) {
-    filters.push('c.parent_id IS NULL');
-  }
-
   const [rows] = await pool.query(
     `SELECT
         c.id,
@@ -46,11 +42,32 @@ export async function listCategories(query = {}) {
     params
   );
 
-  const categories = rows.map((row) => ({
-    ...row,
-    active_sites_count: Number(row.active_sites_count || 0),
-    children: []
-  }));
+  const canonicalByKey = new Map();
+  const canonicalIdBySourceId = new Map();
+
+  for (const row of rows) {
+    const canonicalParentId =
+      row.parent_id == null ? null : (canonicalIdBySourceId.get(row.parent_id) ?? row.parent_id);
+    const key = `${canonicalParentId ?? 'root'}::${String(row.name || '').trim().toLowerCase()}`;
+    const existing = canonicalByKey.get(key);
+
+    if (existing) {
+      existing.active_sites_count += Number(row.active_sites_count || 0);
+      canonicalIdBySourceId.set(row.id, existing.id);
+      continue;
+    }
+
+    const category = {
+      ...row,
+      parent_id: canonicalParentId,
+      active_sites_count: Number(row.active_sites_count || 0),
+      children: []
+    };
+    canonicalByKey.set(key, category);
+    canonicalIdBySourceId.set(row.id, category.id);
+  }
+
+  const categories = [...canonicalByKey.values()];
 
   const byId = new Map(categories.map((category) => [category.id, category]));
   const roots = [];
@@ -61,7 +78,8 @@ export async function listCategories(query = {}) {
       continue;
     }
 
-    const parent = byId.get(category.parent_id);
+    const canonicalParentId = canonicalIdBySourceId.get(category.parent_id);
+    const parent = byId.get(canonicalParentId);
     if (parent) {
       parent.children.push(category);
     }

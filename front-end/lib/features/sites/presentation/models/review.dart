@@ -6,6 +6,10 @@ class Review {
   final int rating; // 1-5
   final DateTime date;
   final String? profilePicture;
+  final bool hasOwnerResponse;
+  final String? ownerResponse;
+  final DateTime? ownerResponseDate;
+  final int helpfulCount;
 
   const Review({
     required this.id,
@@ -15,6 +19,10 @@ class Review {
     required this.rating,
     required this.date,
     this.profilePicture,
+    this.hasOwnerResponse = false,
+    this.ownerResponse,
+    this.ownerResponseDate,
+    this.helpfulCount = 0,
   });
 
   factory Review.fromJson(Map<String, dynamic> json) {
@@ -37,6 +45,17 @@ class Review {
           ) ??
           DateTime.now(),
       profilePicture: json['profile_picture'] as String?,
+      hasOwnerResponse:
+          json['has_owner_response'] == true ||
+          json['has_owner_response'] == 1 ||
+          '${json['has_owner_response']}'.toLowerCase() == 'true',
+      ownerResponse: json['owner_response'] as String?,
+      ownerResponseDate: DateTime.tryParse(
+        json['owner_response_date'] as String? ?? '',
+      ),
+      helpfulCount: json['helpful_count'] is int
+          ? json['helpful_count'] as int
+          : int.tryParse('${json['helpful_count']}') ?? 0,
     );
   }
 
@@ -49,7 +68,40 @@ class Review {
       'rating': rating,
       'date': date.toIso8601String(),
       if (profilePicture != null) 'profile_picture': profilePicture,
+      'has_owner_response': hasOwnerResponse,
+      if (ownerResponse != null) 'owner_response': ownerResponse,
+      if (ownerResponseDate != null)
+        'owner_response_date': ownerResponseDate!.toIso8601String(),
+      'helpful_count': helpfulCount,
     };
+  }
+
+  Review copyWith({
+    String? id,
+    String? author,
+    String? title,
+    String? comment,
+    int? rating,
+    DateTime? date,
+    String? profilePicture,
+    bool? hasOwnerResponse,
+    String? ownerResponse,
+    DateTime? ownerResponseDate,
+    int? helpfulCount,
+  }) {
+    return Review(
+      id: id ?? this.id,
+      author: author ?? this.author,
+      title: title ?? this.title,
+      comment: comment ?? this.comment,
+      rating: rating ?? this.rating,
+      date: date ?? this.date,
+      profilePicture: profilePicture ?? this.profilePicture,
+      hasOwnerResponse: hasOwnerResponse ?? this.hasOwnerResponse,
+      ownerResponse: ownerResponse ?? this.ownerResponse,
+      ownerResponseDate: ownerResponseDate ?? this.ownerResponseDate,
+      helpfulCount: helpfulCount ?? this.helpfulCount,
+    );
   }
 
   /// Format date to relative time (e.g., "Il y a 2 jours")

@@ -70,6 +70,69 @@ class _ProfessionalSiteDetailScreenState
     }
   }
 
+  Future<void> _replyToReview(Review review) async {
+    final controller = TextEditingController(text: review.ownerResponse ?? '');
+    final nextResponse = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(
+            review.hasOwnerResponse
+                ? 'Modifier la reponse professionnelle'
+                : 'Repondre a cet avis',
+          ),
+          content: TextField(
+            controller: controller,
+            maxLines: 6,
+            minLines: 4,
+            decoration: const InputDecoration(
+              hintText:
+                  'Saisissez une reponse claire, professionnelle et utile.',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Annuler'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(controller.text.trim());
+              },
+              child: const Text('Enregistrer'),
+            ),
+          ],
+        );
+      },
+    );
+    controller.dispose();
+
+    if (nextResponse == null || nextResponse.trim().isEmpty) {
+      return;
+    }
+
+    try {
+      await _apiService.respondToReview(
+        reviewId: review.id,
+        responseText: nextResponse.trim(),
+      );
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Reponse professionnelle enregistree.'),
+          backgroundColor: AppColors.secondary,
+        ),
+      );
+      await _loadDetail();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -99,6 +162,15 @@ class _ProfessionalSiteDetailScreenState
                   ),
                   const SizedBox(height: 16),
                   _ValidationSection(site: _detail!.site),
+                  const SizedBox(height: 16),
+                  _SectionCard(
+                    title: 'Visibilite et engagement',
+                    icon: Icons.insights_outlined,
+                    child: _AnalyticsSection(
+                      site: _detail!.site,
+                      analytics: _detail!.analytics,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   _SectionCard(
                     title: 'Contact et localisation',
@@ -131,6 +203,7 @@ class _ProfessionalSiteDetailScreenState
                     icon: Icons.reviews_outlined,
                     child: _RecentReviewsSection(
                       reviews: _detail!.recentReviews,
+                      onReply: _replyToReview,
                     ),
                   ),
                 ],
@@ -181,6 +254,15 @@ class _HeroSection extends StatelessWidget {
                 label: verification.label,
                 backgroundColor: Colors.white.withValues(alpha: 0.16),
               ),
+              _HeroChip(
+                icon: site.isProfessionalClaimed
+                    ? Icons.verified_user_outlined
+                    : Icons.pending_outlined,
+                label: site.isProfessionalClaimed
+                    ? 'Lieu revendique'
+                    : 'Lieu non revendique',
+                backgroundColor: Colors.white.withValues(alpha: 0.16),
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -213,6 +295,10 @@ class _HeroSection extends StatelessWidget {
               ),
               _MetricBadge(label: 'Avis', value: '${site.totalReviews}'),
               _MetricBadge(label: 'Favoris', value: '${site.favoritesCount}'),
+              _MetricBadge(
+                label: 'Offre',
+                value: site.subscriptionPlan ?? 'FREE',
+              ),
             ],
           ),
           if (site.description.isNotEmpty) ...[
@@ -249,6 +335,80 @@ class _HeroSection extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _AnalyticsSection extends StatelessWidget {
+  final ProfessionalSite site;
+  final ProfessionalSiteAnalytics analytics;
+
+  const _AnalyticsSection({required this.site, required this.analytics});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            _AnalyticsTile(
+              title: 'Vues',
+              value: '${site.viewsCount}',
+              subtitle: 'Visibilite totale de la fiche',
+              color: AppColors.primary,
+            ),
+            _AnalyticsTile(
+              title: 'Favoris',
+              value: '${site.favoritesCount}',
+              subtitle: 'Utilisateurs interesses',
+              color: Colors.pink.shade700,
+            ),
+            _AnalyticsTile(
+              title: 'Check-ins',
+              value: '${analytics.totalCheckins}',
+              subtitle: '${analytics.recentCheckins30d} sur 30 jours',
+              color: AppColors.secondary,
+            ),
+            _AnalyticsTile(
+              title: 'Reponse avis',
+              value: '${analytics.responseRate}%',
+              subtitle: '${analytics.ownerRepliesCount} reponses publiees',
+              color: Colors.orange.shade700,
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceAlt,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Lecture rapide',
+                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Le lieu totalise ${analytics.publishedReviews} avis publies, ${analytics.pendingReviews} en attente, et une note moyenne recente de ${analytics.averageRating30d.toStringAsFixed(1)} sur les 30 derniers jours.',
+                style: AppTextStyles.body.copyWith(color: Colors.grey[800]),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Sur la meme periode, ${analytics.recentReviews30d} nouvel${analytics.recentReviews30d > 1 ? 's avis' : ' avis'} et ${analytics.recentCheckins30d} check-in${analytics.recentCheckins30d > 1 ? 's' : ''} ont renforce la fiabilite et la visibilite de la fiche.',
+                style: AppTextStyles.body.copyWith(color: Colors.grey[800]),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -627,8 +787,9 @@ class _ActivitySection extends StatelessWidget {
 
 class _RecentReviewsSection extends StatelessWidget {
   final List<Review> reviews;
+  final ValueChanged<Review> onReply;
 
-  const _RecentReviewsSection({required this.reviews});
+  const _RecentReviewsSection({required this.reviews, required this.onReply});
 
   @override
   Widget build(BuildContext context) {
@@ -696,12 +857,147 @@ class _RecentReviewsSection extends StatelessWidget {
                         color: Colors.grey[600],
                       ),
                     ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 8,
+                      children: [
+                        _InlineMetric(
+                          icon: Icons.thumb_up_alt_outlined,
+                          label:
+                              '${review.helpfulCount} utile${review.helpfulCount > 1 ? 's' : ''}',
+                        ),
+                        TextButton.icon(
+                          onPressed: () => onReply(review),
+                          icon: Icon(
+                            review.hasOwnerResponse
+                                ? Icons.edit_outlined
+                                : Icons.reply_outlined,
+                          ),
+                          label: Text(
+                            review.hasOwnerResponse
+                                ? 'Modifier la reponse'
+                                : 'Repondre',
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (review.hasOwnerResponse &&
+                        (review.ownerResponse ?? '').trim().isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Votre reponse professionnelle',
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              review.ownerResponse!.trim(),
+                              style: AppTextStyles.body.copyWith(
+                                color: Colors.grey[900],
+                              ),
+                            ),
+                            if (review.ownerResponseDate != null) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                _formatDateTime(review.ownerResponseDate!),
+                                style: AppTextStyles.caption.copyWith(
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
             ),
           )
           .toList(),
+    );
+  }
+}
+
+class _AnalyticsTile extends StatelessWidget {
+  final String title;
+  final String value;
+  final String subtitle;
+  final Color color;
+
+  const _AnalyticsTile({
+    required this.title,
+    required this.value,
+    required this.subtitle,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 150,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: AppTextStyles.caption.copyWith(
+              color: Colors.grey[700],
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: AppTextStyles.heading2.copyWith(fontSize: 24, color: color),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: AppTextStyles.caption.copyWith(color: Colors.grey[700]),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InlineMetric extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _InlineMetric({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: Colors.grey[700]),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: AppTextStyles.caption.copyWith(color: Colors.grey[700]),
+        ),
+      ],
     );
   }
 }

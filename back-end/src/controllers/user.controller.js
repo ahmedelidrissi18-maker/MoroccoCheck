@@ -1,5 +1,13 @@
-import { paginatedResponse, successResponse } from '../utils/response.utils.js';
-import { validateRequest, updatePasswordSchema } from '../utils/validators.js';
+import {
+  paginatedResponse,
+  successResponse,
+  validationErrorResponse
+} from '../utils/response.utils.js';
+import {
+  validateRequest,
+  updatePasswordSchema,
+  contributorRequestCreateSchema
+} from '../utils/validators.js';
 import {
   listBadges,
   getUserBadges,
@@ -9,6 +17,10 @@ import {
   getMyStats,
   getPublicUserProfile
 } from '../services/user.service.js';
+import {
+  createContributorRequest,
+  getMyContributorRequestStatus
+} from '../services/contributor-request.service.js';
 
 export const getBadges = async (_req, res) => {
   const result = await listBadges();
@@ -33,11 +45,7 @@ export const getMeHandler = async (req, res) => {
 export const updateMyPasswordHandler = async (req, res) => {
   const { error, value } = validateRequest(updatePasswordSchema, req.body);
   if (error) {
-    return res.status(400).json({
-      success: false,
-      message: 'Validation echouee',
-      errors: error.details.map((detail) => detail.message)
-    });
+    return validationErrorResponse(res, error);
   }
 
   const result = await updateMyPassword(req.userId, value);
@@ -47,6 +55,26 @@ export const updateMyPasswordHandler = async (req, res) => {
 export const getMyStatsHandler = async (req, res) => {
   const result = await getMyStats(req.userId);
   return successResponse(res, result);
+};
+
+export const getMyContributorRequestHandler = async (req, res) => {
+  const result = await getMyContributorRequestStatus(req.userId);
+  return successResponse(res, result);
+};
+
+export const createContributorRequestHandler = async (req, res) => {
+  const { error, value } = validateRequest(contributorRequestCreateSchema, req.body);
+  if (error) {
+    return validationErrorResponse(res, error);
+  }
+
+  const result = await createContributorRequest(req.userId, value);
+  return successResponse(
+    res,
+    result,
+    'Demande de passage en CONTRIBUTOR envoyee',
+    201
+  );
 };
 
 export const getPublicUserProfileHandler = async (req, res) => {

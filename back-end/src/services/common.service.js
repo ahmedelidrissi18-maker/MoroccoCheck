@@ -55,7 +55,6 @@ export function canContribute(role) {
   return [
     USER_ROLES.CONTRIBUTOR,
     USER_ROLES.PROFESSIONAL,
-    USER_ROLES.MODERATOR,
     USER_ROLES.ADMIN
   ].includes(role);
 }
@@ -63,13 +62,12 @@ export function canContribute(role) {
 export function canManageSites(role) {
   return [
     USER_ROLES.PROFESSIONAL,
-    USER_ROLES.MODERATOR,
     USER_ROLES.ADMIN
   ].includes(role);
 }
 
 export function canModerate(role) {
-  return [USER_ROLES.MODERATOR, USER_ROLES.ADMIN].includes(role);
+  return role === USER_ROLES.ADMIN;
 }
 
 export function canAdmin(role) {
@@ -99,7 +97,14 @@ export async function syncUserStats(db, userId) {
     `SELECT
         u.points,
         (SELECT COUNT(*) FROM checkins c WHERE c.user_id = u.id) AS checkins_count,
-        (SELECT COUNT(*) FROM reviews r WHERE r.user_id = u.id AND r.deleted_at IS NULL AND r.status != 'DELETED') AS reviews_count
+        (SELECT COUNT(*) FROM reviews r WHERE r.user_id = u.id AND r.deleted_at IS NULL AND r.status != 'DELETED') AS reviews_count,
+        (
+          SELECT COUNT(*)
+          FROM photos p
+          WHERE p.user_id = u.id
+            AND p.status != 'DELETED'
+            AND p.entity_type IN ('REVIEW', 'CHECKIN', 'SITE', 'USER_PROFILE')
+        ) AS photos_count
      FROM users u
      WHERE u.id = ?`,
     [userId]
@@ -115,9 +120,9 @@ export async function syncUserStats(db, userId) {
 
   await db.query(
     `UPDATE users
-     SET checkins_count = ?, reviews_count = ?, level = ?, rank = ?, updated_at = NOW()
+     SET checkins_count = ?, reviews_count = ?, photos_count = ?, level = ?, rank = ?, updated_at = NOW()
      WHERE id = ?`,
-    [stats.checkins_count, stats.reviews_count, level, rank, userId]
+    [stats.checkins_count, stats.reviews_count, stats.photos_count, level, rank, userId]
   );
 
   return {

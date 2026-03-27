@@ -29,3 +29,6 @@ uploads/
 dist/
 build/
 .cache/
+coverage/
+*.jks
+*.keystore

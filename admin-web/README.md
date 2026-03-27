@@ -1,7 +1,8 @@
 # MoroccoCheck Admin Web
 
-Web app admin separee pour `ADMIN` et `MODERATOR`, branchee sur le backend
-MoroccoCheck.
+Interface web d administration reservee aux comptes `ADMIN`.
+
+Elle est connectee au backend MoroccoCheck et permet de piloter les zones critiques du produit.
 
 ## Demarrage
 
@@ -11,33 +12,47 @@ npm install
 npm run dev
 ```
 
-Par defaut, l application appelle `http://127.0.0.1:5001/api`.
+Par defaut, l interface appelle:
 
-Pour changer l URL backend:
+- `http://127.0.0.1:5001/api`
+
+Pour changer l API:
 
 ```bash
 set VITE_API_BASE_URL=http://127.0.0.1:5001/api
 npm run dev
 ```
 
-## Fonctions actuellement disponibles
+Template d environnement:
 
-- connexion admin/moderator via `POST /api/auth/login`
+- [admin-web/.env.example](/C:/Users/User/App_Touriste/admin-web/.env.example)
+
+Reference globale:
+
+- [ENVIRONMENTS.md](/C:/Users/User/App_Touriste/ENVIRONMENTS.md)
+
+## Build
+
+```bash
+npm run build
+npm run build:staging
+npm run build:production
+```
+
+## Fonctions Disponibles
+
+- connexion admin
 - dashboard avec stats globales
-- routing URL par page avec React Router
-- liste des sites en attente
-- pagination sur les listes sites, avis et utilisateurs
-- detail site admin avec URL dediee
-- moderation rapide des sites avec note
-- liste des avis en attente
-- detail avis admin avec URL dediee
+- moderation des sites
+- detail d un site admin
 - moderation des avis
+- detail d un avis admin
 - consultation des utilisateurs
-- detail utilisateur dans l interface
-- mise a jour du statut utilisateur pour `ADMIN`
+- mise a jour du statut utilisateur
+- traitement des demandes contributor
 - deconnexion
 
-## URLs principales
+## Routes UI
 
 - `/login`
 - `/dashboard/overview`
@@ -45,14 +60,38 @@ npm run dev
 - `/dashboard/sites/:siteId`
 - `/dashboard/reviews`
 - `/dashboard/reviews/:reviewId`
+- `/dashboard/contributor-requests`
 - `/dashboard/users`
 - `/dashboard/users/:id`
 
-## Limites actuelles
+## Dependances Techniques
 
-- pas encore de module categories / badges / analytics avances
+- React 18
+- Vite
+- React Router
 
-## Note de deploiement
+## Verification Locale
 
-Comme il s agit maintenant d une SPA avec vraies URLs, le serveur de
-production devra rewriter les routes inconnues vers `index.html`.
+Verifier au minimum:
+
+1. login admin
+2. chargement du dashboard
+3. moderation d un site
+4. moderation d un avis
+5. consultation des utilisateurs
+6. traitement d une demande contributor
+
+## Note De Deploiement
+
+L application est une SPA.
+
+Le serveur de production doit:
+
+- servir les assets du build
+- rewriter les routes inconnues vers `index.html`
+- exposer la bonne valeur de `VITE_API_BASE_URL`
+
+## Limites Actuelles
+
+- pas encore de modules categories admin, badges admin ou analytics avances
+- la securisation d exploitation production reste a finaliser
