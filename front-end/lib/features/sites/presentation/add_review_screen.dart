@@ -254,6 +254,8 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     if (_site == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Ajouter un avis')),
@@ -262,11 +264,7 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Ajouter un avis'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-      ),
+      appBar: AppBar(title: const Text('Ajouter un avis')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -283,10 +281,13 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
                         width: 60,
                         height: 60,
                         decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(8),
+                          color: colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(18),
                         ),
-                        child: Icon(Icons.place, color: Colors.grey[600]),
+                        child: Icon(
+                          Icons.place,
+                          color: colorScheme.onSurface.withValues(alpha: 0.7),
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -314,166 +315,203 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              Text(
-                'Votre note',
-                style: AppTextStyles.heading2.copyWith(fontSize: 20),
-              ),
-              const SizedBox(height: 8),
-              Center(child: _buildRatingBar()),
-              if (_rating == 0)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    'Veuillez selectionner une note',
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.error,
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 24),
-              TextFormField(
-                controller: _commentController,
-                maxLines: 5,
-                maxLength: 4000,
-                validator: _validateComment,
-                decoration: InputDecoration(
-                  hintText: 'Decrivez votre experience...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Votre note',
+                        style: AppTextStyles.heading2.copyWith(fontSize: 20),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Cette etape est requise avant de publier votre avis.',
+                        style: AppTextStyles.caption.copyWith(
+                          color: colorScheme.onSurface.withValues(alpha: 0.7),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Center(child: _buildRatingBar()),
+                      if (_rating == 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            'Veuillez selectionner une note',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.error,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),
               const SizedBox(height: 16),
-              Text(
-                'Photos de l avis',
-                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: _isLoading || _selectedPhotos.length >= 5
-                    ? null
-                    : _pickReviewPhotos,
-                icon: const Icon(Icons.add_a_photo_outlined),
-                label: Text(
-                  _selectedPhotos.isEmpty
-                      ? 'Ajouter jusqu a 5 photos'
-                      : 'Ajouter d autres photos',
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceAlt,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Text(
-                  _selectedPhotos.isEmpty
-                      ? 'Ajoutez des photos pour enrichir votre retour d experience.'
-                      : '${_selectedPhotos.length} photo${_selectedPhotos.length > 1 ? 's' : ''} selectionnee${_selectedPhotos.length > 1 ? 's' : ''}.',
-                  style: AppTextStyles.caption.copyWith(
-                    color: Colors.grey[800],
-                  ),
-                ),
-              ),
-              if (_selectedPhotos.isNotEmpty) const SizedBox(height: 12),
-              if (_selectedPhotos.isNotEmpty)
-                SizedBox(
-                  height: 96,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _selectedPhotos.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(width: 10),
-                    itemBuilder: (context, index) {
-                      final photo = _selectedPhotos[index];
-                      return Stack(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: FutureBuilder<Uint8List>(
-                              future: photo.readAsBytes(),
-                              builder: (context, snapshot) {
-                                if (snapshot.hasData) {
-                                  return Image.memory(
-                                    snapshot.data!,
-                                    width: 96,
-                                    height: 96,
-                                    fit: BoxFit.cover,
-                                  );
-                                }
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Commentaire et photos',
+                        style: AppTextStyles.heading2.copyWith(fontSize: 20),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Ajoutez du contexte et des visuels pour enrichir votre retour.',
+                        style: AppTextStyles.caption.copyWith(
+                          color: colorScheme.onSurface.withValues(alpha: 0.7),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _commentController,
+                        maxLines: 5,
+                        maxLength: 4000,
+                        validator: _validateComment,
+                        decoration: const InputDecoration(
+                          hintText: 'Decrivez votre experience...',
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Photos de l avis',
+                        style: AppTextStyles.body.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: _isLoading || _selectedPhotos.length >= 5
+                            ? null
+                            : _pickReviewPhotos,
+                        icon: const Icon(Icons.add_a_photo_outlined),
+                        label: Text(
+                          _selectedPhotos.isEmpty
+                              ? 'Ajouter jusqu a 5 photos'
+                              : 'Ajouter d autres photos',
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceAlt,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Text(
+                          _selectedPhotos.isEmpty
+                              ? 'Ajoutez des photos pour enrichir votre retour d experience.'
+                              : '${_selectedPhotos.length} photo${_selectedPhotos.length > 1 ? 's' : ''} selectionnee${_selectedPhotos.length > 1 ? 's' : ''}.',
+                          style: AppTextStyles.caption.copyWith(
+                            color: colorScheme.onSurface.withValues(alpha: 0.8),
+                          ),
+                        ),
+                      ),
+                      if (_selectedPhotos.isNotEmpty)
+                        const SizedBox(height: 12),
+                      if (_selectedPhotos.isNotEmpty)
+                        SizedBox(
+                          height: 96,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _selectedPhotos.length,
+                            separatorBuilder: (context, index) =>
+                                const SizedBox(width: 10),
+                            itemBuilder: (context, index) {
+                              final photo = _selectedPhotos[index];
+                              return Stack(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: FutureBuilder<Uint8List>(
+                                      future: photo.readAsBytes(),
+                                      builder: (context, snapshot) {
+                                        if (snapshot.hasData) {
+                                          return Image.memory(
+                                            snapshot.data!,
+                                            width: 96,
+                                            height: 96,
+                                            fit: BoxFit.cover,
+                                          );
+                                        }
 
-                                return Container(
-                                  width: 96,
-                                  height: 96,
-                                  color: Colors.grey[300],
-                                  alignment: Alignment.center,
-                                  child: snapshot.hasError
-                                      ? Icon(
-                                          Icons.broken_image_outlined,
-                                          color: Colors.grey[700],
-                                        )
-                                      : const SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                          ),
+                                        return Container(
+                                          width: 96,
+                                          height: 96,
+                                          color: colorScheme
+                                              .surfaceContainerHighest,
+                                          alignment: Alignment.center,
+                                          child: snapshot.hasError
+                                              ? Icon(
+                                                  Icons.broken_image_outlined,
+                                                  color: colorScheme.onSurface
+                                                      .withValues(alpha: 0.7),
+                                                )
+                                              : const SizedBox(
+                                                  width: 20,
+                                                  height: 20,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                      ),
+                                                ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 4,
+                                    right: 4,
+                                    child: InkWell(
+                                      onTap: _isLoading
+                                          ? null
+                                          : () => _removePhoto(photo),
+                                      borderRadius: BorderRadius.circular(999),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.black54,
+                                          shape: BoxShape.circle,
                                         ),
-                                );
-                              },
-                            ),
+                                        child: const Icon(
+                                          Icons.close,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
-                          Positioned(
-                            top: 4,
-                            right: 4,
-                            child: InkWell(
-                              onTap: _isLoading
-                                  ? null
-                                  : () => _removePhoto(photo),
-                              borderRadius: BorderRadius.circular(999),
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: const BoxDecoration(
-                                  color: Colors.black54,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.close,
-                                  color: Colors.white,
-                                  size: 16,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
+                        ),
+                    ],
                   ),
                 ),
+              ),
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _handleSubmit,
+                  onPressed: _isLoading || _rating == 0 ? null : _handleSubmit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
                   ),
                   child: _isLoading
-                      ? const SizedBox(
+                      ? SizedBox(
                           height: 20,
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
+                              colorScheme.onPrimary,
                             ),
                           ),
                         )
@@ -488,6 +526,8 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
   }
 
   Widget _buildRatingBar() {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List<Widget>.generate(5, (index) {
@@ -505,7 +545,9 @@ class _AddReviewScreenState extends State<AddReviewScreen> {
             child: Icon(
               starIndex <= _rating ? Icons.star : Icons.star_border,
               size: 42,
-              color: starIndex <= _rating ? Colors.amber : Colors.grey[400],
+              color: starIndex <= _rating
+                  ? colorScheme.secondary
+                  : colorScheme.onSurface.withValues(alpha: 0.35),
             ),
           ),
         );

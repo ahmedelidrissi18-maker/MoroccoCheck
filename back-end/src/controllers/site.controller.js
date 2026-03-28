@@ -20,6 +20,7 @@ import {
   getSiteReviews,
   getSitePhotos,
 } from "../services/site.service.js";
+import { validateMediaFieldInput } from "../utils/media-input.utils.js";
 
 export const getSites = async (req, res) => {
   const result = await listSites(req.query, req.user);
@@ -52,6 +53,17 @@ export const createSiteHandler = async (req, res) => {
     return validationErrorResponse(res, error);
   }
 
+  const mediaValidationError = validateMediaFieldInput(value.cover_photo, {
+    fieldName: 'cover_photo',
+    entityType: 'site',
+    req,
+  });
+  if (mediaValidationError) {
+    return validationErrorResponse(res, {
+      details: [mediaValidationError],
+    });
+  }
+
   const result = await createSite(value, req.user);
   return successResponse(res, result, "Site cree avec succes", 201);
 };
@@ -60,6 +72,17 @@ export const updateSiteHandler = async (req, res) => {
   const { error, value } = validateRequest(siteUpdateSchema, req.body);
   if (error) {
     return validationErrorResponse(res, error);
+  }
+
+  const mediaValidationError = validateMediaFieldInput(value.cover_photo, {
+    fieldName: 'cover_photo',
+    entityType: 'site',
+    req,
+  });
+  if (mediaValidationError) {
+    return validationErrorResponse(res, {
+      details: [mediaValidationError],
+    });
   }
 
   const result = await updateSite(Number(req.params.id), value, req.user);

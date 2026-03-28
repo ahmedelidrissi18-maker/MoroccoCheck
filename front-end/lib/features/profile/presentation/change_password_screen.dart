@@ -159,79 +159,119 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(18),
                 ),
-                child: Text(
-                  'Le backend invalide les sessions apres la mise a jour du mot de passe. Nous vous reconnecterons ensuite pour repartir sur une session propre.',
-                  style: AppTextStyles.body.copyWith(color: Colors.grey[800]),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.lock_outline,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Utilisez un mot de passe unique pour securiser votre compte.',
+                        style: AppTextStyles.body.copyWith(
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 20),
-              TextFormField(
-                controller: _currentPasswordController,
-                obscureText: !_showCurrentPassword,
-                validator: _validateCurrentPassword,
-                decoration: InputDecoration(
-                  labelText: 'Mot de passe actuel',
-                  suffixIcon: IconButton(
-                    onPressed: () {
-                      setState(() {
-                        _showCurrentPassword = !_showCurrentPassword;
-                      });
-                    },
-                    icon: Icon(
-                      _showCurrentPassword
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
+              Text(
+                'Mot de passe actuel',
+                style: AppTextStyles.heading2.copyWith(fontSize: 20),
+              ),
+              const SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: TextFormField(
+                    controller: _currentPasswordController,
+                    obscureText: !_showCurrentPassword,
+                    validator: _validateCurrentPassword,
+                    decoration: InputDecoration(
+                      labelText: 'Mot de passe actuel',
+                      suffixIcon: IconButton(
+                        onPressed: () {
+                          setState(() {
+                            _showCurrentPassword = !_showCurrentPassword;
+                          });
+                        },
+                        icon: Icon(
+                          _showCurrentPassword
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                        ),
+                      ),
                     ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Nouveau mot de passe',
+                style: AppTextStyles.heading2.copyWith(fontSize: 20),
+              ),
+              const SizedBox(height: 12),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: _newPasswordController,
+                        obscureText: !_showNewPassword,
+                        validator: _validateNewPassword,
+                        decoration: InputDecoration(
+                          labelText: 'Nouveau mot de passe',
+                          helperText:
+                              'Au moins 6 caracteres et different du mot de passe actuel.',
+                          suffixIcon: IconButton(
+                            onPressed: () {
+                              setState(() {
+                                _showNewPassword = !_showNewPassword;
+                              });
+                            },
+                            icon: Icon(
+                              _showNewPassword
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _confirmPasswordController,
+                        obscureText: !_showConfirmPassword,
+                        validator: _validateConfirmPassword,
+                        decoration: InputDecoration(
+                          labelText: 'Confirmer le nouveau mot de passe',
+                          suffixIcon: IconButton(
+                            onPressed: () {
+                              setState(() {
+                                _showConfirmPassword = !_showConfirmPassword;
+                              });
+                            },
+                            icon: Icon(
+                              _showConfirmPassword
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: _newPasswordController,
-                obscureText: !_showNewPassword,
-                validator: _validateNewPassword,
-                decoration: InputDecoration(
-                  labelText: 'Nouveau mot de passe',
-                  suffixIcon: IconButton(
-                    onPressed: () {
-                      setState(() {
-                        _showNewPassword = !_showNewPassword;
-                      });
-                    },
-                    icon: Icon(
-                      _showNewPassword
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _confirmPasswordController,
-                obscureText: !_showConfirmPassword,
-                validator: _validateConfirmPassword,
-                decoration: InputDecoration(
-                  labelText: 'Confirmer le nouveau mot de passe',
-                  suffixIcon: IconButton(
-                    onPressed: () {
-                      setState(() {
-                        _showConfirmPassword = !_showConfirmPassword;
-                      });
-                    },
-                    icon: Icon(
-                      _showConfirmPassword
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                    ),
-                  ),
-                ),
-              ),
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
@@ -255,6 +295,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                         : 'Mettre a jour le mot de passe',
                   ),
                 ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Votre session sera invalidee apres la mise a jour. Vous devrez vous reconnecter avec le nouveau mot de passe.',
+                style: AppTextStyles.caption.copyWith(color: Colors.grey[700]),
               ),
             ],
           ),

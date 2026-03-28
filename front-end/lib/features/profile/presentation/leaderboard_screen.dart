@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/network/api_service.dart';
+import '../../../shared/widgets/app_circle_avatar.dart';
 import '../../auth/presentation/auth_provider.dart';
 import 'models/leaderboard_entry.dart';
 
@@ -83,9 +84,13 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   @override
   Widget build(BuildContext context) {
     final currentUserId = context.watch<AuthProvider>().user?.id.toString();
+    final podiumEntries = _entries.take(3).toList();
+    final rankedEntries = _entries.length > 3
+        ? _entries.skip(3).toList()
+        : const <LeaderboardEntry>[];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Leaderboard')),
+      appBar: AppBar(title: const Text('Classement')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _entries.isEmpty
@@ -96,20 +101,19 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                 padding: const EdgeInsets.all(16),
                 children: [
                   _buildHero(),
-                  const SizedBox(height: 16),
-                  if (_entries.isNotEmpty)
-                    _buildPodium(_entries.take(3).toList()),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
+                  if (podiumEntries.isNotEmpty) _buildPodium(podiumEntries),
+                  const SizedBox(height: 12),
                   Text(
                     'Classement complet',
                     style: AppTextStyles.heading2.copyWith(fontSize: 22),
                   ),
                   const SizedBox(height: 12),
-                  ..._entries.asMap().entries.map((entry) {
+                  ...rankedEntries.asMap().entries.map((entry) {
                     final index = entry.key;
                     final user = entry.value;
                     return _LeaderboardTile(
-                      position: index + 1,
+                      position: index + 4,
                       entry: user,
                       isCurrentUser: currentUserId == user.id,
                       onTap: () => context.push('/users/${user.id}'),
@@ -147,7 +151,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
 
   Widget _buildHero() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         gradient: const LinearGradient(
@@ -161,24 +165,24 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
         children: [
           const Row(
             children: [
-              Icon(Icons.emoji_events, color: Colors.amber, size: 30),
+              Icon(Icons.emoji_events, color: Colors.amber, size: 26),
               SizedBox(width: 10),
               Text(
                 'Classement communautaire',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 22,
+                  fontSize: 20,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Text(
             'Le classement est calcule a partir des points, du niveau et de l activite reelle des utilisateurs.',
             style: AppTextStyles.body.copyWith(color: Colors.white),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           Text(
             '$_total contributeur${_total > 1 ? 's' : ''} visibles',
             style: AppTextStyles.caption.copyWith(
@@ -197,7 +201,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
       leaders.isNotEmpty ? leaders[0] : null,
       leaders.length > 2 ? leaders[2] : null,
     ];
-    final heights = <double>[120, 160, 105];
+    final heights = <double>[92, 120, 84];
     final labels = <String>['#2', '#1', '#3'];
     final colors = <Color>[
       Color(0xFF94A3B8),
@@ -208,7 +212,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: List<Widget>.generate(3, (index) {
@@ -224,21 +228,13 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            CircleAvatar(
-                              radius: index == 1 ? 28 : 23,
+                            AppCircleAvatar(
+                              radius: index == 1 ? 24 : 20,
                               backgroundColor: colors[index].withValues(
                                 alpha: 0.15,
                               ),
-                              backgroundImage:
-                                  entry.profilePicture != null &&
-                                      entry.profilePicture!.isNotEmpty
-                                  ? NetworkImage(entry.profilePicture!)
-                                  : null,
-                              child:
-                                  entry.profilePicture == null ||
-                                      entry.profilePicture!.isEmpty
-                                  ? Icon(Icons.person, color: colors[index])
-                                  : null,
+                              imageUrl: entry.profilePicture,
+                              fallback: Icon(Icons.person, color: colors[index]),
                             ),
                             const SizedBox(height: 8),
                             Text(
@@ -262,23 +258,23 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                               child: Center(
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      labels[index],
-                                      style: const TextStyle(
-                                        color: Colors.white,
+                                   children: [
+                                     Text(
+                                       labels[index],
+                                       style: const TextStyle(
+                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
                                     const SizedBox(height: 8),
-                                    Text(
-                                      '${entry.points} pts',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
+                                     Text(
+                                       '${entry.points} pts',
+                                       style: const TextStyle(
+                                         color: Colors.white,
+                                         fontSize: 11,
+                                         fontWeight: FontWeight.w600,
+                                       ),
+                                     ),
                                   ],
                                 ),
                               ),
@@ -346,23 +342,19 @@ class _LeaderboardTile extends StatelessWidget {
       color: isCurrentUser ? const Color(0xFFEFF6FF) : null,
       child: ListTile(
         onTap: onTap,
-        leading: CircleAvatar(
+        leading: AppCircleAvatar(
+          radius: 20,
           backgroundColor: isCurrentUser
               ? AppColors.primary.withValues(alpha: 0.16)
               : Colors.grey.shade200,
-          backgroundImage:
-              entry.profilePicture != null && entry.profilePicture!.isNotEmpty
-              ? NetworkImage(entry.profilePicture!)
-              : null,
-          child: entry.profilePicture == null || entry.profilePicture!.isEmpty
-              ? Text(
-                  '$position',
-                  style: TextStyle(
-                    color: isCurrentUser ? AppColors.primary : Colors.black87,
-                    fontWeight: FontWeight.w700,
-                  ),
-                )
-              : null,
+          imageUrl: entry.profilePicture,
+          fallback: Text(
+            '$position',
+            style: TextStyle(
+              color: isCurrentUser ? AppColors.primary : Colors.black87,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ),
         title: Row(
           children: [
@@ -390,7 +382,7 @@ class _LeaderboardTile extends StatelessWidget {
           ],
         ),
         subtitle: Text(
-          '${entry.rank}  •  Niveau ${entry.level}  •  ${entry.checkinsCount} check-ins  •  ${entry.reviewsCount} avis',
+          '${entry.rank} • Niveau ${entry.level} • ${entry.checkinsCount} check-ins • ${entry.reviewsCount} avis',
         ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,

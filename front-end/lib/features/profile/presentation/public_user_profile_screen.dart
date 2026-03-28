@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/network/api_service.dart';
+import '../../../shared/widgets/app_circle_avatar.dart';
+import '../../../shared/widgets/loading_skeleton.dart';
 import 'models/public_user_profile.dart';
 
 class PublicUserProfileScreen extends StatefulWidget {
@@ -11,7 +13,8 @@ class PublicUserProfileScreen extends StatefulWidget {
   const PublicUserProfileScreen({super.key, required this.userId});
 
   @override
-  State<PublicUserProfileScreen> createState() => _PublicUserProfileScreenState();
+  State<PublicUserProfileScreen> createState() =>
+      _PublicUserProfileScreenState();
 }
 
 class _PublicUserProfileScreenState extends State<PublicUserProfileScreen> {
@@ -66,7 +69,10 @@ class _PublicUserProfileScreenState extends State<PublicUserProfileScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Profil public')),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Padding(
+              padding: EdgeInsets.all(16),
+              child: LoadingSkeleton.list(),
+            )
           : _profile == null
           ? _buildErrorState()
           : RefreshIndicator(
@@ -103,19 +109,11 @@ class _PublicUserProfileScreenState extends State<PublicUserProfileScreen> {
         children: [
           Row(
             children: [
-              CircleAvatar(
+              AppCircleAvatar(
                 radius: 34,
                 backgroundColor: Colors.white.withValues(alpha: 0.18),
-                backgroundImage:
-                    profile.profilePicture != null &&
-                        profile.profilePicture!.isNotEmpty
-                    ? NetworkImage(profile.profilePicture!)
-                    : null,
-                child:
-                    profile.profilePicture == null ||
-                        profile.profilePicture!.isEmpty
-                    ? const Icon(Icons.person, color: Colors.white, size: 34)
-                    : null,
+                imageUrl: profile.profilePicture,
+                fallback: const Icon(Icons.person, color: Colors.white, size: 34),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -164,18 +162,17 @@ class _PublicUserProfileScreenState extends State<PublicUserProfileScreen> {
           style: AppTextStyles.heading2.copyWith(fontSize: 21),
         ),
         const SizedBox(height: 12),
-        Row(
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 2,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          childAspectRatio: 1.45,
           children: [
             _StatCard(label: 'Points', value: '${profile.points}'),
-            const SizedBox(width: 10),
             _StatCard(label: 'Check-ins', value: '${profile.checkinsCount}'),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
             _StatCard(label: 'Avis', value: '${profile.reviewsCount}'),
-            const SizedBox(width: 10),
             _StatCard(label: 'Badges', value: '${profile.badgeCount}'),
           ],
         ),
@@ -212,7 +209,11 @@ class _PublicUserProfileScreenState extends State<PublicUserProfileScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.person_search_outlined, size: 60, color: Colors.grey[400]),
+            Icon(
+              Icons.person_search_outlined,
+              size: 60,
+              color: Colors.grey[400],
+            ),
             const SizedBox(height: 16),
             Text(
               'Profil indisponible',
@@ -269,30 +270,29 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceAlt,
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: AppTextStyles.caption.copyWith(color: Colors.grey[700]),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceAlt,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.caption.copyWith(color: Colors.grey[700]),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: AppTextStyles.heading2.copyWith(
+              fontSize: 24,
+              color: AppColors.primary,
             ),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: AppTextStyles.heading2.copyWith(
-                fontSize: 24,
-                color: AppColors.primary,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
+import '../../../../shared/widgets/app_network_image.dart';
 import '../models/site_photo.dart';
 import '../sites/site.dart';
 
@@ -440,11 +441,10 @@ class SiteDetailPhotosTab extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.network(
-                imageUrl,
+              AppNetworkImage(
+                imageUrl: imageUrl,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    const _SitePhotoPlaceholder(),
+                fallback: const _SitePhotoPlaceholder(),
               ),
               DecoratedBox(
                 decoration: BoxDecoration(
@@ -598,11 +598,7 @@ class RelatedSiteCard extends StatelessWidget {
   final Site site;
   final VoidCallback onTap;
 
-  const RelatedSiteCard({
-    super.key,
-    required this.site,
-    required this.onTap,
-  });
+  const RelatedSiteCard({super.key, required this.site, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -623,11 +619,10 @@ class RelatedSiteCard extends StatelessWidget {
                 width: 68,
                 height: 68,
                 child: site.imageUrl.isNotEmpty
-                    ? Image.network(
-                        site.imageUrl,
+                    ? AppNetworkImage(
+                        imageUrl: site.imageUrl,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const _CompactSitePlaceholder(),
+                        fallback: const _CompactSitePlaceholder(),
                       )
                     : const _CompactSitePlaceholder(),
               ),
@@ -650,7 +645,7 @@ class RelatedSiteCard extends StatelessWidget {
                     [
                       site.category,
                       if (site.city.isNotEmpty) site.city,
-                    ].join(' • '),
+                    ].join(' - '),
                     style: AppTextStyles.caption.copyWith(
                       color: Colors.grey[700],
                     ),
@@ -671,7 +666,10 @@ class RelatedSiteCard extends StatelessWidget {
                       color: AppColors.accentGold,
                     ),
                     const SizedBox(width: 4),
-                    Text(site.rating.toStringAsFixed(1), style: AppTextStyles.bodyStrong),
+                    Text(
+                      site.rating.toStringAsFixed(1),
+                      style: AppTextStyles.bodyStrong,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 6),

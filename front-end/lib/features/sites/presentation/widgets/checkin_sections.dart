@@ -58,20 +58,25 @@ class CheckinPolicyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final summary =
+        '$strategyLabel - Rayon $allowedDistanceMeters m - Precision <= $maxAccuracyMeters m';
+
     return Card(
       color: AppColors.primary.withValues(alpha: 0.06),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          title: Text(
+            'Politique de verification',
+            style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
+          ),
+          subtitle: Text(summary, style: AppTextStyles.caption),
+          trailing: const Text('En savoir plus'),
           children: [
             Text(
-              'Politique de verification',
-              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '$strategyLabel - Rayon $allowedDistanceMeters m - Precision <= $maxAccuracyMeters m - Presence recommandee $minimumVisitDurationSeconds s',
+              'Presence recommandee: $minimumVisitDurationSeconds s avant soumission.',
               style: AppTextStyles.caption,
             ),
             if (pendingQueueCount > 0) ...[
@@ -241,10 +246,7 @@ class CheckinErrorCard extends StatelessWidget {
 class CheckinRestrictionCard extends StatelessWidget {
   final String message;
 
-  const CheckinRestrictionCard({
-    super.key,
-    required this.message,
-  });
+  const CheckinRestrictionCard({super.key, required this.message});
 
   @override
   Widget build(BuildContext context) {
@@ -295,7 +297,9 @@ class CheckinPhotoSection extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         OutlinedButton.icon(
-          onPressed: isLoading || selectedPhotos.length >= 5 ? null : onAddPhotos,
+          onPressed: isLoading || selectedPhotos.length >= 5
+              ? null
+              : onAddPhotos,
           icon: const Icon(Icons.add_a_photo_outlined),
           label: Text(
             selectedPhotos.isEmpty
@@ -316,9 +320,7 @@ class CheckinPhotoSection extends StatelessWidget {
             selectedPhotos.isEmpty
                 ? 'Ajoutez des photos pour renforcer la preuve terrain de votre check-in.'
                 : '${selectedPhotos.length} photo${selectedPhotos.length > 1 ? 's' : ''} selectionnee${selectedPhotos.length > 1 ? 's' : ''}. Un check-in avec photo rapporte plus de points.',
-            style: AppTextStyles.caption.copyWith(
-              color: Colors.grey[800],
-            ),
+            style: AppTextStyles.caption.copyWith(color: Colors.grey[800]),
           ),
         ),
         if (selectedPhotos.isNotEmpty) const SizedBox(height: 12),

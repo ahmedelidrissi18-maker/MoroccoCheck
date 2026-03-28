@@ -214,8 +214,7 @@ class Site {
           json['category_name'] as String? ?? json['category'] as String? ?? '',
       subcategory:
           json['subcategory_name'] as String? ?? json['subcategory'] as String?,
-      imageUrl:
-          json['cover_photo'] as String? ?? json['imageUrl'] as String? ?? '',
+      imageUrl: json['cover_photo'] as String? ?? json['imageUrl'] as String? ?? '',
       address: json['address'] as String? ?? '',
       city: json['city'] as String? ?? '',
       region: json['region'] as String? ?? '',

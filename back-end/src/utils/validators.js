@@ -1,5 +1,27 @@
 import Joi from "joi";
 
+const mediaReferenceSchema = Joi.string()
+  .trim()
+  .custom((value, helpers) => {
+    if (!value) {
+      return value;
+    }
+
+    if (value.startsWith('/uploads/')) {
+      return value;
+    }
+
+    try {
+      const parsed = new URL(value);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        return value;
+      }
+    } catch (_error) {
+    }
+
+    return helpers.error('string.uri');
+  }, 'media reference validation');
+
 export const registerSchema = Joi.object({
   first_name: Joi.string().trim().min(2).max(100).required(),
   last_name: Joi.string().trim().min(2).max(100).required(),
@@ -22,7 +44,7 @@ export const updateProfileSchema = Joi.object({
   first_name: Joi.string().trim().min(2).max(100).optional(),
   last_name: Joi.string().trim().min(2).max(100).optional(),
   email: Joi.string().trim().email().optional(),
-  profile_picture: Joi.string().uri().allow("").optional(),
+  profile_picture: mediaReferenceSchema.allow("").optional(),
   phone_number: Joi.string()
     .pattern(/^[+]?[0-9]{8,15}$/)
     .allow("")
@@ -60,7 +82,7 @@ export const siteCreateSchema = Joi.object({
   has_parking: Joi.boolean().optional(),
   is_accessible: Joi.boolean().optional(),
   amenities: Joi.array().items(Joi.string()).optional(),
-  cover_photo: Joi.string().uri().allow("").optional(),
+  cover_photo: mediaReferenceSchema.allow("").optional(),
   status: Joi.string()
     .valid("DRAFT", "PENDING_REVIEW", "PUBLISHED", "ARCHIVED", "REPORTED")
     .optional(),

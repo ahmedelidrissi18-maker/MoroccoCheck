@@ -13,6 +13,7 @@ class BadgesCatalogScreen extends StatefulWidget {
 
 class _BadgesCatalogScreenState extends State<BadgesCatalogScreen> {
   final ApiService _apiService = ApiService();
+  final Set<String> _expandedBadgeIds = <String>{};
 
   bool _isLoading = true;
   String? _error;
@@ -126,101 +127,132 @@ class _BadgesCatalogScreenState extends State<BadgesCatalogScreen> {
   }
 
   Widget _buildBadgeCard(BadgeCatalogItem badge) {
-    final rarityColor = _rarityColor(badge.rarity);
-    final criteria = <String>[
-      if (badge.requiredCheckins > 0) '${badge.requiredCheckins} check-ins',
-      if (badge.requiredReviews > 0) '${badge.requiredReviews} avis',
-      if (badge.requiredPoints > 0) '${badge.requiredPoints} points',
-      if (badge.requiredLevel > 0) 'Niveau ${badge.requiredLevel}',
+    final rarityColor = _rarityColor(context, badge.rarity);
+    final conditionChips = <Widget>[
+      if (badge.requiredCheckins > 0)
+        _BadgePill(label: '${badge.requiredCheckins} check-ins', color: rarityColor),
+      if (badge.requiredReviews > 0)
+        _BadgePill(label: '${badge.requiredReviews} avis', color: rarityColor),
+      if (badge.requiredPoints > 0)
+        _BadgePill(label: '${badge.requiredPoints} points', color: rarityColor),
+      if (badge.requiredLevel > 0)
+        _BadgePill(label: 'Niveau ${badge.requiredLevel}', color: rarityColor),
     ];
+    final isExpanded = _expandedBadgeIds.contains(badge.id);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: 26,
-                  backgroundColor: rarityColor.withValues(alpha: 0.12),
-                  child: Icon(
-                    Icons.workspace_premium_outlined,
-                    color: rarityColor,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          setState(() {
+            if (isExpanded) {
+              _expandedBadgeIds.remove(badge.id);
+            } else {
+              _expandedBadgeIds.add(badge.id);
+            }
+          });
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    radius: 26,
+                    backgroundColor: rarityColor.withValues(alpha: 0.12),
+                    child: Icon(
+                      Icons.workspace_premium_outlined,
+                      color: rarityColor,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        badge.name,
-                        style: AppTextStyles.body.copyWith(
-                          fontWeight: FontWeight.w700,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          badge.name,
+                          style: AppTextStyles.body.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        badge.description,
-                        style: AppTextStyles.body.copyWith(
-                          color: Colors.grey[800],
+                        const SizedBox(height: 4),
+                        Text(
+                          badge.description,
+                          style: AppTextStyles.body.copyWith(
+                            color: Colors.grey[800],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _BadgePill(label: badge.rarity, color: rarityColor),
-                _BadgePill(label: badge.category, color: AppColors.primary),
-                _BadgePill(
-                  label: '${badge.pointsReward} pts bonus',
-                  color: AppColors.secondary,
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              criteria.isEmpty
-                  ? 'Aucune condition detaillee exposee par le backend.'
-                  : 'Conditions: ${criteria.join(' · ')}',
-              style: AppTextStyles.caption.copyWith(
-                color: Colors.grey[700],
-                fontWeight: FontWeight.w600,
+                  const SizedBox(width: 8),
+                  Icon(
+                    isExpanded ? Icons.expand_less : Icons.expand_more,
+                    color: Colors.grey[700],
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Attribue ${badge.totalAwarded} fois',
-              style: AppTextStyles.caption.copyWith(color: Colors.grey[600]),
-            ),
-          ],
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _BadgePill(label: badge.rarity, color: rarityColor),
+                  _BadgePill(label: badge.category, color: AppColors.primary),
+                  _BadgePill(
+                    label: '${badge.pointsReward} pts bonus',
+                    color: AppColors.secondary,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (conditionChips.isEmpty)
+                Text(
+                  'Aucune condition detaillee exposee par le backend.',
+                  style: AppTextStyles.caption.copyWith(
+                    color: Colors.grey[700],
+                    fontWeight: FontWeight.w600,
+                  ),
+                )
+              else
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: conditionChips,
+                ),
+              if (isExpanded) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Attribue ${badge.totalAwarded} fois',
+                  style: AppTextStyles.caption.copyWith(color: Colors.grey[600]),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Color _rarityColor(String rarity) {
+  Color _rarityColor(BuildContext context, String rarity) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     switch (rarity) {
       case 'LEGENDARY':
-        return Colors.deepOrange;
+        return colorScheme.error;
       case 'EPIC':
-        return Colors.purple;
+        return colorScheme.tertiary;
       case 'RARE':
-        return Colors.indigo;
+        return colorScheme.primary;
       case 'UNCOMMON':
-        return Colors.teal;
+        return colorScheme.secondary;
       default:
-        return Colors.grey;
+        return colorScheme.outline;
     }
   }
 }

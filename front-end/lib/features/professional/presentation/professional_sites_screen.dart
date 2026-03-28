@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/network/api_service.dart';
+import '../../../shared/widgets/empty_state_widget.dart';
+import '../../../shared/widgets/status_chip.dart';
 import '../models/professional_site.dart';
 import 'professional_site_status.dart';
 
@@ -152,7 +155,7 @@ class _ProfessionalSitesScreenState extends State<ProfessionalSitesScreen> {
                           (status) => Padding(
                             padding: const EdgeInsets.only(right: 8),
                             child: _buildFilterChip(
-                              status,
+                              _statusFilterLabel(status),
                               _selectedStatus == status,
                               () {
                                 setState(() {
@@ -182,32 +185,18 @@ class _ProfessionalSitesScreenState extends State<ProfessionalSitesScreen> {
                       ),
                     ),
                   if (_sites.isEmpty && _error == null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 24),
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.storefront_outlined,
-                            size: 60,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Aucun lieu pour le moment',
-                            style: AppTextStyles.heading2.copyWith(
-                              color: Colors.grey[700],
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Commencez par soumettre votre premier lieu. Les statuts de publication et de validation apparaitront ici.',
-                            style: AppTextStyles.body.copyWith(
-                              color: Colors.grey[600],
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
+                    EmptyStateWidget(
+                      icon: Icons.storefront_outlined,
+                      title: 'Aucun lieu pour le moment',
+                      message:
+                          'Commencez par soumettre votre premier lieu. Les statuts de publication et de validation apparaitront ici.',
+                      primaryAction: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _openCreateScreen,
+                          icon: const Icon(Icons.add_business),
+                          label: const Text('Ajouter un etablissement'),
+                        ),
                       ),
                     )
                   else
@@ -243,7 +232,7 @@ class _ProfessionalSitesScreenState extends State<ProfessionalSitesScreen> {
                                           ),
                                           const SizedBox(height: 6),
                                           Text(
-                                            '${site.categoryName} · ${site.city}',
+                                            '${site.categoryName} - ${site.city}',
                                           ),
                                         ],
                                       ),
@@ -264,13 +253,19 @@ class _ProfessionalSitesScreenState extends State<ProfessionalSitesScreen> {
                                   spacing: 8,
                                   runSpacing: 8,
                                   children: [
-                                    _StatusPill(
+                                    StatusChip(
+                                      icon: publication.icon,
                                       label: publication.label,
-                                      color: publication.color,
+                                      tone: _publicationTone(site.status),
+                                      size: StatusChipSize.small,
                                     ),
-                                    _StatusPill(
+                                    StatusChip(
+                                      icon: verification.icon,
                                       label: verification.label,
-                                      color: verification.color,
+                                      tone: _verificationTone(
+                                        site.verificationStatus,
+                                      ),
+                                      size: StatusChipSize.small,
                                     ),
                                     _StatusPill(
                                       label:
@@ -295,13 +290,6 @@ class _ProfessionalSitesScreenState extends State<ProfessionalSitesScreen> {
                                   runSpacing: 8,
                                   children: [
                                     TextButton.icon(
-                                      onPressed: () => _openDetailScreen(site),
-                                      icon: const Icon(
-                                        Icons.visibility_outlined,
-                                      ),
-                                      label: const Text('Voir la fiche'),
-                                    ),
-                                    TextButton.icon(
                                       onPressed: () => _openEditScreen(site),
                                       icon: const Icon(Icons.edit_outlined),
                                       label: const Text('Modifier'),
@@ -318,6 +306,43 @@ class _ProfessionalSitesScreenState extends State<ProfessionalSitesScreen> {
               ),
             ),
     );
+  }
+
+  String _statusFilterLabel(String status) {
+    switch (status) {
+      case 'PUBLISHED':
+        return 'Publies';
+      case 'PENDING_REVIEW':
+        return 'En attente';
+      case 'ARCHIVED':
+        return 'Archives';
+      default:
+        return status;
+    }
+  }
+
+  StatusChipTone _publicationTone(String status) {
+    switch (status) {
+      case 'PUBLISHED':
+        return StatusChipTone.success;
+      case 'PENDING_REVIEW':
+        return StatusChipTone.warning;
+      default:
+        return StatusChipTone.defaultTone;
+    }
+  }
+
+  StatusChipTone _verificationTone(String status) {
+    switch (status) {
+      case 'VERIFIED':
+        return StatusChipTone.success;
+      case 'PENDING':
+        return StatusChipTone.warning;
+      case 'REJECTED':
+        return StatusChipTone.danger;
+      default:
+        return StatusChipTone.defaultTone;
+    }
   }
 
   Widget _buildFilterChip(String label, bool isSelected, VoidCallback onTap) {

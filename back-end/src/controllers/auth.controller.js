@@ -17,6 +17,7 @@ import {
   logoutSession
 } from '../services/auth.service.js';
 import { logAudit } from '../utils/logger.utils.js';
+import { validateMediaFieldInput } from '../utils/media-input.utils.js';
 
 const register = async (req, res) => {
   const { error, value } = validateRequest(registerSchema, req.body);
@@ -81,6 +82,17 @@ const updateProfile = async (req, res) => {
   const { error, value } = validateRequest(updateProfileSchema, req.body);
   if (error) {
     return validationErrorResponse(res, error);
+  }
+
+  const mediaValidationError = validateMediaFieldInput(value.profile_picture, {
+    fieldName: 'profile_picture',
+    entityType: 'user_profile',
+    req
+  });
+  if (mediaValidationError) {
+    return validationErrorResponse(res, {
+      details: [mediaValidationError]
+    });
   }
 
   const result = await updateProfileById(req.userId, value);

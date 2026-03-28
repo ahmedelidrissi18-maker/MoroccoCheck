@@ -17,7 +17,7 @@ import usersRoutes from './src/routes/users.routes.js';
 import adminRoutes from './src/routes/admin.routes.js';
 import errorMiddleware from './src/middleware/error.middleware.js';
 import requestContextMiddleware from './src/middleware/request-context.middleware.js';
-import { ensureUploadsDirectories, uploadsRoot } from './src/utils/media.utils.js';
+import { ensureUploadsDirectories } from './src/utils/media.utils.js';
 import { logInfo } from './src/utils/logger.utils.js';
 import { initMonitoring, isMonitoringEnabled } from './src/config/monitoring.js';
 
@@ -55,7 +55,12 @@ app.use(
     })
   )
 );
-app.use('/uploads', express.static(path.resolve(__dirname, 'uploads')));
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  next();
+});
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes de test
 

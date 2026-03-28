@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/utils/media_url.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import 'models/site_photo.dart';
@@ -75,7 +76,7 @@ class _CheckinPhotoGalleryScreenState extends State<CheckinPhotoGalleryScreen> {
                 maxScale: 4,
                 child: Center(
                   child: Image.network(
-                    photo.imageUrl,
+                    buildMediaUrl(photo.imageUrl),
                     fit: BoxFit.contain,
                     errorBuilder: (context, error, stackTrace) {
                       return const Column(
@@ -132,60 +133,68 @@ class _CheckinPhotoGalleryScreenState extends State<CheckinPhotoGalleryScreen> {
                         color: Colors.white70,
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      height: 64,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: widget.photos.length,
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(width: 8),
-                        itemBuilder: (context, index) {
-                          final photo = widget.photos[index];
-                          final isSelected = index == _currentIndex;
-                          return GestureDetector(
-                            onTap: () {
-                              _pageController.animateToPage(
-                                index,
-                                duration: const Duration(milliseconds: 220),
-                                curve: Curves.easeOut,
-                              );
-                            },
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? AppColors.primary
-                                      : Colors.transparent,
-                                  width: 2,
+                    if (widget.photos.length > 1) ...[
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        height: 64,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: widget.photos.length,
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(width: 8),
+                          itemBuilder: (context, index) {
+                            final photo = widget.photos[index];
+                            final isSelected = index == _currentIndex;
+                            return GestureDetector(
+                              onTap: () {
+                                _pageController.animateToPage(
+                                  index,
+                                  duration: const Duration(milliseconds: 220),
+                                  curve: Curves.easeOut,
+                                );
+                              },
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : Colors.transparent,
+                                    width: 2,
+                                  ),
                                 ),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: Image.network(
-                                  photo.thumbnailUrl ?? photo.imageUrl,
-                                  width: 64,
-                                  height: 64,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      Container(
-                                        width: 64,
-                                        height: 64,
-                                        color: Colors.white10,
-                                        alignment: Alignment.center,
-                                        child: const Icon(
-                                          Icons.image_not_supported_outlined,
-                                          color: Colors.white54,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Image.network(
+                                    buildMediaUrl(
+                                      photo.thumbnailUrl ?? photo.imageUrl,
+                                    ),
+                                    width: 64,
+                                    height: 64,
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (
+                                          context,
+                                          error,
+                                          stackTrace,
+                                        ) => Container(
+                                          width: 64,
+                                          height: 64,
+                                          color: Colors.white10,
+                                          alignment: Alignment.center,
+                                          child: const Icon(
+                                            Icons.image_not_supported_outlined,
+                                            color: Colors.white54,
+                                          ),
                                         ),
-                                      ),
+                                  ),
                                 ),
                               ),
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),

@@ -419,14 +419,11 @@ class _CheckinScreenState extends State<CheckinScreen> {
     final currentUser = context.watch<AuthProvider?>()?.user;
     final canSubmitCheckin =
         currentUser == null || _allowedRoles.contains(currentUser.role);
+    final colorScheme = Theme.of(context).colorScheme;
 
     if (_site == null) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Check-in'),
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-        ),
+        appBar: AppBar(title: const Text('Check-in')),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -434,11 +431,7 @@ class _CheckinScreenState extends State<CheckinScreen> {
     return Stack(
       children: [
         Scaffold(
-          appBar: AppBar(
-            title: const Text('Check-in'),
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-          ),
+          appBar: AppBar(title: const Text('Check-in')),
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -470,10 +463,7 @@ class _CheckinScreenState extends State<CheckinScreen> {
                     formatDistance: formatDistance,
                   ),
                 if (_error != null && !_isCheckingLocation)
-                  CheckinErrorCard(
-                    error: _error!,
-                    onRetry: _checkUserLocation,
-                  ),
+                  CheckinErrorCard(error: _error!, onRetry: _checkUserLocation),
                 if (!canSubmitCheckin)
                   const CheckinRestrictionCard(
                     message:
@@ -523,23 +513,9 @@ class _CheckinScreenState extends State<CheckinScreen> {
                         TextFormField(
                           controller: _commentController,
                           maxLines: 4,
-                          decoration: InputDecoration(
+                          decoration: const InputDecoration(
                             hintText:
                                 'Ajoutez un commentaire sur l etat du site...',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: Colors.grey[300]!),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(
-                                color: AppColors.primary,
-                                width: 2,
-                              ),
-                            ),
                           ),
                         ),
                         const SizedBox(height: 20),
@@ -555,21 +531,16 @@ class _CheckinScreenState extends State<CheckinScreen> {
                           child: ElevatedButton(
                             onPressed: _isLoading ? null : _handleSubmit,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
                             ),
                             child: _isLoading
-                                ? const SizedBox(
+                                ? SizedBox(
                                     height: 20,
                                     width: 20,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
                                       valueColor: AlwaysStoppedAnimation<Color>(
-                                        Colors.white,
+                                        colorScheme.onPrimary,
                                       ),
                                     ),
                                   )

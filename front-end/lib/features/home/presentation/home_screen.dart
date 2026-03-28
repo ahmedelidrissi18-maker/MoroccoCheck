@@ -5,7 +5,6 @@ import '../../../core/constants/app_colors.dart';
 import '../../auth/presentation/auth_provider.dart';
 import '../../map/presentation/map_screen.dart';
 import '../../profile/presentation/profile_screen.dart';
-import '../../settings/presentation/settings_screen.dart';
 import '../../sites/presentation/sites_list_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -18,22 +17,16 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
-  final List<Widget> _tabs = const [
+  List<Widget> _tabsFor(bool isAuthenticated) => const [
     MapScreen(),
     SitesListScreen(),
     ProfileScreen(),
-    SettingsScreen(),
   ];
 
   void _onTabSelected(int index) {
     final authProvider = context.read<AuthProvider>();
 
     if (index == 2 && !authProvider.isAuthenticated) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Connectez-vous pour acceder a votre profil.'),
-        ),
-      );
       context.push('/login');
       return;
     }
@@ -45,8 +38,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isAuthenticated = context.watch<AuthProvider>().isAuthenticated;
+    final tabs = _tabsFor(isAuthenticated);
+    final safeIndex = _selectedIndex.clamp(0, tabs.length - 1);
+
     return Scaffold(
-      body: IndexedStack(index: _selectedIndex, children: _tabs),
+      body: IndexedStack(index: safeIndex, children: tabs),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
@@ -62,28 +59,29 @@ class _HomeScreenState extends State<HomeScreen> {
         child: SafeArea(
           top: false,
           child: NavigationBar(
-            selectedIndex: _selectedIndex,
+            selectedIndex: safeIndex,
             onDestinationSelected: _onTabSelected,
-            destinations: const [
+            destinations: [
               NavigationDestination(
                 icon: Icon(Icons.explore_outlined),
                 selectedIcon: Icon(Icons.explore),
-                label: 'Explorer',
+                label: 'Carte',
               ),
               NavigationDestination(
                 icon: Icon(Icons.ballot_outlined),
                 selectedIcon: Icon(Icons.ballot),
-                label: 'Lieux',
+                label: 'Explorer',
               ),
               NavigationDestination(
-                icon: Icon(Icons.person_outline_rounded),
-                selectedIcon: Icon(Icons.person_rounded),
-                label: 'Profil',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.tune_outlined),
-                selectedIcon: Icon(Icons.tune),
-                label: 'Reglages',
+                icon: Icon(
+                  isAuthenticated
+                      ? Icons.person_outline_rounded
+                      : Icons.login_rounded,
+                ),
+                selectedIcon: Icon(
+                  isAuthenticated ? Icons.person_rounded : Icons.login_rounded,
+                ),
+                label: isAuthenticated ? 'Profil' : 'Connexion',
               ),
             ],
           ),

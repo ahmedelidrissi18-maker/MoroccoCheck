@@ -454,260 +454,319 @@ class _CreateSiteScreenState extends State<CreateSiteScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Nom du lieu'),
-                validator: (value) => _validateRequiredText(value, 'le nom'),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _nameArController,
-                decoration: const InputDecoration(
-                  labelText: 'Nom en arabe',
-                  hintText: 'Optionnel',
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (_categoriesError != null)
-                Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.error.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline, color: AppColors.error),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Impossible de charger les categories metier depuis le backend.',
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.error,
-                          ),
+              _FormSectionCard(
+                title: 'Identite',
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: _nameController,
+                      decoration: const InputDecoration(labelText: 'Nom du lieu'),
+                      validator: (value) =>
+                          _validateRequiredText(value, 'le nom'),
+                    ),
+                    const SizedBox(height: 16),
+                    if (_categoriesError != null)
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.error_outline,
+                              color: AppColors.error,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Impossible de charger les categories metier depuis le backend.',
+                                style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.error,
+                                ),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: _loadCategories,
+                              child: const Text('Reessayer'),
+                            ),
+                          ],
                         ),
                       ),
-                      TextButton(
-                        onPressed: _loadCategories,
-                        child: const Text('Reessayer'),
-                      ),
-                    ],
-                  ),
-                ),
-              DropdownButtonFormField<int>(
-                initialValue:
-                    _categories.any(
-                      (category) => category.id == _selectedCategoryId,
-                    )
-                    ? _selectedCategoryId
-                    : null,
-                decoration: const InputDecoration(labelText: 'Categorie'),
-                items: _categories
-                    .map(
-                      (category) => DropdownMenuItem<int>(
-                        value: category.id,
-                        child: Text(category.name),
-                      ),
-                    )
-                    .toList(),
-                validator: (value) =>
-                    value == null ? 'Veuillez choisir une categorie' : null,
-                disabledHint: _isCategoriesLoading
-                    ? const Text('Chargement des categories...')
-                    : const Text('Aucune categorie disponible'),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _selectedCategoryId = value;
-                    });
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _descriptionController,
-                maxLines: 4,
-                decoration: const InputDecoration(
-                  labelText: 'Description',
-                  hintText: 'Decrivez votre lieu en quelques lignes',
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _descriptionArController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Description en arabe',
-                  hintText: 'Optionnel',
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _subcategoryController,
-                decoration: const InputDecoration(
-                  labelText: 'Sous-categorie',
-                  hintText: 'Ex. Surf camp, rooftop, kasbah...',
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _addressController,
-                decoration: const InputDecoration(labelText: 'Adresse'),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _cityController,
-                      decoration: const InputDecoration(labelText: 'Ville'),
+                    DropdownButtonFormField<int>(
+                      initialValue:
+                          _categories.any(
+                            (category) => category.id == _selectedCategoryId,
+                          )
+                          ? _selectedCategoryId
+                          : null,
+                      decoration: const InputDecoration(labelText: 'Categorie'),
+                      items: _categories
+                          .map(
+                            (category) => DropdownMenuItem<int>(
+                              value: category.id,
+                              child: Text(category.name),
+                            ),
+                          )
+                          .toList(),
                       validator: (value) =>
-                          _validateRequiredText(value, 'la ville'),
+                          value == null
+                              ? 'Veuillez choisir une categorie'
+                              : null,
+                      disabledHint: _isCategoriesLoading
+                          ? const Text('Chargement des categories...')
+                          : const Text('Aucune categorie disponible'),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            _selectedCategoryId = value;
+                          });
+                        }
+                      },
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _regionController,
-                      decoration: const InputDecoration(labelText: 'Region'),
-                      validator: (value) =>
-                          _validateRequiredText(value, 'la region'),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _descriptionController,
+                      maxLines: 4,
+                      decoration: const InputDecoration(
+                        labelText: 'Description',
+                        hintText: 'Decrivez votre lieu en quelques lignes',
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _postalCodeController,
-                decoration: const InputDecoration(
-                  labelText: 'Code postal',
-                  hintText: 'Optionnel',
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _subcategoryController,
+                      decoration: const InputDecoration(
+                        labelText: 'Sous-categorie',
+                        hintText: 'Ex. Surf camp, rooftop, kasbah...',
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _latitudeController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        signed: true,
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(labelText: 'Latitude'),
-                      validator: _validateLatitude,
+              _FormSectionCard(
+                title: 'Localisation',
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: _addressController,
+                      decoration: const InputDecoration(labelText: 'Adresse'),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _longitudeController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        signed: true,
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(labelText: 'Longitude'),
-                      validator: _validateLongitude,
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _cityController,
+                            decoration: const InputDecoration(labelText: 'Ville'),
+                            validator: (value) =>
+                                _validateRequiredText(value, 'la ville'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _regionController,
+                            decoration: const InputDecoration(
+                              labelText: 'Region',
+                            ),
+                            validator: (value) =>
+                                _validateRequiredText(value, 'la region'),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(labelText: 'Telephone'),
-                validator: _validatePhoneNumber,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(labelText: 'Email public'),
-                validator: _validateEmail,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _websiteController,
-                keyboardType: TextInputType.url,
-                decoration: const InputDecoration(labelText: 'Site web'),
-                validator: _validateWebsite,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _coverPhotoController,
-                keyboardType: TextInputType.url,
-                decoration: const InputDecoration(
-                  labelText: 'URL photo de couverture',
-                  hintText: 'https://...',
-                ),
-                validator: _validateWebsite,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _amenitiesController,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Commodites',
-                  hintText: 'wifi, parking, terrasse, plage...',
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _latitudeController,
+                            keyboardType:
+                                const TextInputType.numberWithOptions(
+                                  signed: true,
+                                  decimal: true,
+                                ),
+                            decoration: const InputDecoration(
+                              labelText: 'Latitude',
+                            ),
+                            validator: _validateLatitude,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _longitudeController,
+                            keyboardType:
+                                const TextInputType.numberWithOptions(
+                                  signed: true,
+                                  decimal: true,
+                                ),
+                            decoration: const InputDecoration(
+                              labelText: 'Longitude',
+                            ),
+                            validator: _validateLongitude,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: _selectedPriceRange,
-                decoration: const InputDecoration(labelText: 'Gamme de prix'),
-                items: _priceRanges
-                    .map(
-                      (range) => DropdownMenuItem<String>(
-                        value: range,
-                        child: Text(range),
+              _FormSectionCard(
+                title: 'Contact',
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(labelText: 'Telephone'),
+                      validator: _validatePhoneNumber,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: 'Email public',
                       ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedPriceRange = value;
-                  });
-                },
+                      validator: _validateEmail,
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
-              SwitchListTile(
-                value: _acceptsCardPayment,
-                onChanged: (value) {
-                  setState(() {
-                    _acceptsCardPayment = value;
-                  });
-                },
-                title: const Text('Paiement par carte'),
+              _FormSectionCard(
+                title: 'Services',
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: _amenitiesController,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        labelText: 'Commodites',
+                        hintText: 'wifi, parking, terrasse, plage...',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: _selectedPriceRange,
+                      decoration: const InputDecoration(
+                        labelText: 'Gamme de prix',
+                      ),
+                      items: _priceRanges
+                          .map(
+                            (range) => DropdownMenuItem<String>(
+                              value: range,
+                              child: Text(range),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedPriceRange = value;
+                        });
+                      },
+                    ),
+                  ],
+                ),
               ),
-              SwitchListTile(
-                value: _hasWifi,
-                onChanged: (value) {
-                  setState(() {
-                    _hasWifi = value;
-                  });
-                },
-                title: const Text('Wi-Fi disponible'),
-              ),
-              SwitchListTile(
-                value: _hasParking,
-                onChanged: (value) {
-                  setState(() {
-                    _hasParking = value;
-                  });
-                },
-                title: const Text('Parking disponible'),
-              ),
-              SwitchListTile(
-                value: _isAccessible,
-                onChanged: (value) {
-                  setState(() {
-                    _isAccessible = value;
-                  });
-                },
-                title: const Text('Accessible'),
+              const SizedBox(height: 16),
+              _ExpandableFormSection(
+                title: 'Informations complementaires',
+                subtitle:
+                    'Traductions, site web, photo de couverture et drapeaux de service',
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: _nameArController,
+                      decoration: const InputDecoration(
+                        labelText: 'Nom en arabe',
+                        hintText: 'Optionnel',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _descriptionArController,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Description en arabe',
+                        hintText: 'Optionnel',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _postalCodeController,
+                      decoration: const InputDecoration(
+                        labelText: 'Code postal',
+                        hintText: 'Optionnel',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _websiteController,
+                      keyboardType: TextInputType.url,
+                      decoration: const InputDecoration(labelText: 'Site web'),
+                      validator: _validateWebsite,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _coverPhotoController,
+                      keyboardType: TextInputType.url,
+                      decoration: const InputDecoration(
+                        labelText: 'URL photo de couverture',
+                        hintText: 'https://...',
+                      ),
+                      validator: _validateWebsite,
+                    ),
+                    const SizedBox(height: 8),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: _acceptsCardPayment,
+                      onChanged: (value) {
+                        setState(() {
+                          _acceptsCardPayment = value;
+                        });
+                      },
+                      title: const Text('Paiement par carte'),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: _hasWifi,
+                      onChanged: (value) {
+                        setState(() {
+                          _hasWifi = value;
+                        });
+                      },
+                      title: const Text('Wi-Fi disponible'),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: _hasParking,
+                      onChanged: (value) {
+                        setState(() {
+                          _hasParking = value;
+                        });
+                      },
+                      title: const Text('Parking disponible'),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: _isAccessible,
+                      onChanged: (value) {
+                        setState(() {
+                          _isAccessible = value;
+                        });
+                      },
+                      title: const Text('Accessible'),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 20),
               SizedBox(
@@ -737,6 +796,61 @@ class _CreateSiteScreenState extends State<CreateSiteScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FormSectionCard extends StatelessWidget {
+  final String title;
+  final Widget child;
+
+  const _FormSectionCard({required this.title, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: AppTextStyles.heading2.copyWith(fontSize: 20)),
+            const SizedBox(height: 16),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ExpandableFormSection extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final Widget child;
+
+  const _ExpandableFormSection({
+    required this.title,
+    required this.subtitle,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          title: Text(title, style: AppTextStyles.heading2.copyWith(fontSize: 20)),
+          subtitle: Text(
+            subtitle,
+            style: AppTextStyles.caption.copyWith(color: Colors.grey[700]),
+          ),
+          children: [child],
         ),
       ),
     );

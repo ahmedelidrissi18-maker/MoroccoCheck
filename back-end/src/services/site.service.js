@@ -224,6 +224,7 @@ export async function listSites(filters, currentUser = null) {
 
   const rowsWithPreviewPhotos = rows.map((row) => ({
     ...row,
+    cover_photo: toPublicMediaUrl(row.cover_photo),
     preview_photos: previewPhotosBySiteId.get(Number(row.id)) || [],
   }));
 
@@ -307,7 +308,10 @@ export async function listMySites(currentUser, filters = {}) {
   );
 
   return {
-    data: rows,
+    data: rows.map((row) => ({
+      ...row,
+      cover_photo: toPublicMediaUrl(row.cover_photo),
+    })),
     pagination: paginationMeta(Number(countRows[0]?.total || 0), page, limit),
   };
 }
@@ -392,7 +396,10 @@ async function loadSiteDetails(siteId, currentUser = null, options = {}) {
   );
 
   return {
-    site,
+    site: {
+      ...site,
+      cover_photo: toPublicMediaUrl(site.cover_photo),
+    },
     opening_hours: openingHours,
     recent_reviews: hydratedReviews,
   };

@@ -32,66 +32,6 @@ class ProfessionalHubScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               _SectionCard(
-                title: 'Ce que permet cet espace',
-                icon: Icons.business_center_outlined,
-                child: Column(
-                  children: const [
-                    _FeatureTile(
-                      icon: Icons.storefront_outlined,
-                      title: 'Gerer ses etablissements',
-                      subtitle:
-                          'Suivre les lieux rattaches au compte professionnel et consulter leur statut.',
-                    ),
-                    _FeatureTile(
-                      icon: Icons.add_business_outlined,
-                      title: 'Soumettre un nouveau lieu',
-                      subtitle:
-                          'Creer une fiche proprietaire avec coordonnees, horaires et services declares.',
-                    ),
-                    _FeatureTile(
-                      icon: Icons.timeline_outlined,
-                      title: 'Suivre validation et activite',
-                      subtitle:
-                          'Voir moderation, fraicheur des donnees, vues, avis et verification terrain.',
-                    ),
-                    _FeatureTile(
-                      icon: Icons.edit_note_outlined,
-                      title: 'Mettre a jour rapidement',
-                      subtitle:
-                          'Corriger les informations publiques quand un changement intervient sur le terrain.',
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              _SectionCard(
-                title: 'Parcours recommande',
-                icon: Icons.route_outlined,
-                child: Column(
-                  children: const [
-                    _StepTile(
-                      number: '1',
-                      title: 'Creer ou connecter un compte',
-                      description:
-                          'Le compte permet de rattacher l activite terrain et les etablissements a un proprietaire.',
-                    ),
-                    _StepTile(
-                      number: '2',
-                      title: 'Soumettre une fiche professionnelle',
-                      description:
-                          'Le lieu peut etre complete avec categorie, adresse, services et horaires.',
-                    ),
-                    _StepTile(
-                      number: '3',
-                      title: 'Suivre moderation et corrections',
-                      description:
-                          'La fiche evolue ensuite avec les validations et les retours remontes dans l application.',
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              _SectionCard(
                 title: 'Acces rapide',
                 icon: Icons.flash_on_outlined,
                 child: Column(
@@ -159,6 +99,68 @@ class ProfessionalHubScreen extends StatelessWidget {
                         onTap: () => context.push('/register'),
                       ),
                     ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              _ExpandableSectionCard(
+                title: 'Ce que permet cet espace',
+                icon: Icons.business_center_outlined,
+                subtitle: 'Voir les usages principaux',
+                child: Column(
+                  children: const [
+                    _FeatureTile(
+                      icon: Icons.storefront_outlined,
+                      title: 'Gerer ses etablissements',
+                      subtitle:
+                          'Suivre les lieux rattaches au compte professionnel et consulter leur statut.',
+                    ),
+                    _FeatureTile(
+                      icon: Icons.add_business_outlined,
+                      title: 'Soumettre un nouveau lieu',
+                      subtitle:
+                          'Creer une fiche proprietaire avec coordonnees, horaires et services declares.',
+                    ),
+                    _FeatureTile(
+                      icon: Icons.timeline_outlined,
+                      title: 'Suivre validation et activite',
+                      subtitle:
+                          'Voir moderation, fraicheur des donnees, vues, avis et verification terrain.',
+                    ),
+                    _FeatureTile(
+                      icon: Icons.edit_note_outlined,
+                      title: 'Mettre a jour rapidement',
+                      subtitle:
+                          'Corriger les informations publiques quand un changement intervient sur le terrain.',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              _ExpandableSectionCard(
+                title: 'Parcours recommande',
+                icon: Icons.route_outlined,
+                subtitle: 'Voir les etapes conseillees',
+                child: Column(
+                  children: const [
+                    _StepTile(
+                      number: '1',
+                      title: 'Creer ou connecter un compte',
+                      description:
+                          'Le compte permet de rattacher l activite terrain et les etablissements a un proprietaire.',
+                    ),
+                    _StepTile(
+                      number: '2',
+                      title: 'Soumettre une fiche professionnelle',
+                      description:
+                          'Le lieu peut etre complete avec categorie, adresse, services et horaires.',
+                    ),
+                    _StepTile(
+                      number: '3',
+                      title: 'Suivre moderation et corrections',
+                      description:
+                          'La fiche evolue ensuite avec les validations et les retours remontes dans l application.',
+                    ),
                   ],
                 ),
               ),
@@ -281,6 +283,53 @@ class _SectionCard extends StatelessWidget {
             const SizedBox(height: 16),
             child,
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ExpandableSectionCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Widget child;
+
+  const _ExpandableSectionCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+          childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+          title: Row(
+            children: [
+              Icon(icon, color: AppColors.primary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: AppTextStyles.heading2.copyWith(fontSize: 20),
+                ),
+              ),
+            ],
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(left: 34),
+            child: Text(
+              subtitle,
+              style: AppTextStyles.caption.copyWith(color: Colors.grey[700]),
+            ),
+          ),
+          children: [child],
         ),
       ),
     );

@@ -78,7 +78,7 @@ const agadirSites = [
     openingHours: fullWeek('08:00:00', '23:00:00', 'Service continu en zone marina.'),
     photos: [
       {
-        url: 'https://visite-agadir.com/wp-content/uploads/2024/10/Marina-dAgadir-Le-Port-Moderne.jpg',
+        url: '/uploads/sites/seed-agadir-pure-passion-agadir-1.jpg',
         caption: 'Ambiance marina a Agadir, a quelques pas du restaurant Pure Passion.',
         altText: 'Marina d Agadir a proximite du restaurant Pure Passion'
       }
@@ -107,7 +107,7 @@ const agadirSites = [
     openingHours: fullWeek('09:00:00', '23:00:00', 'Horaires etendus en haute saison.'),
     photos: [
       {
-        url: 'https://visite-agadir.com/wp-content/uploads/2024/10/Marina-dAgadir-Le-Port-Moderne.jpg',
+        url: '/uploads/sites/seed-agadir-le-jardin-d-eau-1.jpg',
         caption: 'Facade et terrasse du Jardin d Eau sur la marina d Agadir.',
         altText: 'Le Jardin d Eau a la marina d Agadir'
       }
@@ -137,7 +137,7 @@ const agadirSites = [
     openingHours: fullWeek24('Accueil hotel 24h/24.'),
     photos: [
       {
-        url: 'https://visite-agadir.com/wp-content/uploads/2025/03/La-Corniche-dAgadir-1024x768.jpg',
+        url: '/uploads/sites/seed-agadir-sofitel-agadir-thalassa-sea-spa-1.png',
         caption: 'Front de mer d Agadir a proximite du Sofitel Agadir Thalassa Sea and Spa.',
         altText: 'Sofitel Agadir Thalassa Sea and Spa'
       }
@@ -165,7 +165,7 @@ const agadirSites = [
     openingHours: fullWeek24('Accueil hotel 24h/24.'),
     photos: [
       {
-        url: 'https://visite-agadir.com/wp-content/uploads/2025/03/La-Corniche-dAgadir-1024x768.jpg',
+        url: '/uploads/sites/seed-agadir-hotel-riu-palace-tikida-agadir-1.jpg',
         caption: 'Front de mer d Agadir a proximite du Riu Palace Tikida Agadir.',
         altText: 'Hotel Riu Palace Tikida Agadir'
       }
@@ -194,7 +194,7 @@ const agadirSites = [
     openingHours: closedMonday('09:30:00', '17:30:00', 'Verification conseillee avant la visite.'),
     photos: [
       {
-        url: 'https://visite-agadir.com/wp-content/uploads/2025/03/Le-Musee-Municipal.jpg',
+        url: '/uploads/sites/seed-agadir-musee-du-patrimoine-amazigh-d-agadir-1.jpg',
         caption: 'Salle d exposition du musee du patrimoine amazigh.',
         altText: 'Interieur du Musee du Patrimoine Amazigh d Agadir'
       }
@@ -222,7 +222,7 @@ const agadirSites = [
     openingHours: fullWeek('09:00:00', '20:00:00', 'Acces souvent lie aux conditions et a la saison.'),
     photos: [
       {
-        url: 'https://www.agadir-oufella.ma/wp-content/uploads/2022/07/topbar.jpg',
+        url: '/uploads/sites/seed-agadir-kasbah-agadir-oufella-1.jpg',
         caption: 'Remparts illumines de la Kasbah d Agadir Oufella.',
         altText: 'Kasbah d Agadir Oufella'
       }
@@ -250,7 +250,7 @@ const agadirSites = [
     openingHours: fullWeek('10:00:00', '22:00:00', 'Horaires variables selon la saison.'),
     photos: [
       {
-        url: 'https://www.agadir-oufella.ma/wp-content/uploads/2024/10/telepheriqueagadir-01.jpg',
+        url: '/uploads/sites/seed-agadir-telepherique-d-agadir-1.jpg',
         caption: 'Cabines du telepherique d Agadir en direction d Oufella.',
         altText: 'Telepherique d Agadir'
       }
@@ -278,7 +278,7 @@ const agadirSites = [
     openingHours: fullWeek24('Baignade et activites conseillees surtout en journee.'),
     photos: [
       {
-        url: 'https://visite-agadir.com/wp-content/uploads/2025/03/La-Corniche-dAgadir-1024x768.jpg',
+        url: '/uploads/sites/seed-agadir-plage-d-agadir-1.jpg',
         caption: 'Promenade et plage urbaine d Agadir.',
         altText: 'Plage d Agadir et sa corniche'
       }
@@ -306,7 +306,7 @@ const agadirSites = [
     openingHours: fullWeek('08:30:00', '21:30:00', 'Affluence plus forte en fin d apres-midi.'),
     photos: [
       {
-        url: 'https://visite-agadir.com/wp-content/uploads/2024/11/Visite-des-souks-et-shopping-artisanal-1024x532.jpg',
+        url: '/uploads/sites/seed-agadir-souk-el-had-d-agadir-1.jpg',
         caption: 'Allee coloree et artisanale du Souk El Had.',
         altText: 'Souk El Had d Agadir'
       }
@@ -334,7 +334,7 @@ const agadirSites = [
     openingHours: fullWeek24('Les commerces et restaurants ont leurs propres horaires.'),
     photos: [
       {
-        url: 'https://visite-agadir.com/wp-content/uploads/2024/10/Marina-dAgadir-Le-Port-Moderne.jpg',
+        url: '/uploads/sites/seed-agadir-marina-d-agadir-1.jpg',
         caption: 'Vue sur les quais et les residences de la marina.',
         altText: 'Marina d Agadir'
       }
@@ -362,7 +362,7 @@ const agadirSites = [
     openingHours: fullWeek('09:00:00', '19:00:00', 'Parc urbain adapte aux promenades courtes.'),
     photos: [
       {
-        url: 'https://visite-agadir.com/wp-content/uploads/2025/03/La-Vallee-des-Oiseaux-1024x681.jpg',
+        url: '/uploads/sites/seed-agadir-vallee-des-oiseaux-d-agadir-1.jpg',
         caption: 'Bassin et oiseaux de la Vallee des Oiseaux.',
         altText: 'Vallee des Oiseaux d Agadir'
       }
@@ -390,7 +390,7 @@ const agadirSites = [
     openingHours: fullWeek('08:00:00', '19:00:00', 'Cadre tranquille en journee.'),
     photos: [
       {
-        url: 'https://visite-agadir.com/wp-content/uploads/2025/03/Jardins-dOlhao.jpg',
+        url: '/uploads/sites/seed-agadir-jardin-d-olhao-1.jpg',
         caption: 'Allees vegetales du Jardin d Olhao.',
         altText: 'Jardin d Olhao a Agadir'
       }
@@ -418,12 +418,12 @@ const agadirSites = [
     openingHours: fullWeek('09:00:00', '18:30:00', 'Verification conseillee lors des jours feries.'),
     photos: [
       {
-        url: 'https://medina-agadir.com/wp-content/uploads/2023/03/DSC04722-scaled.jpg',
+        url: '/uploads/sites/seed-agadir-medina-d-agadir-1.jpg',
         caption: 'Cour principale de la Medina d Agadir.',
         altText: 'Cour de la Medina d Agadir'
       },
       {
-        url: 'https://medina-agadir.com/wp-content/uploads/2022/10/one-of-the-corridors.jpeg',
+        url: '/uploads/sites/seed-agadir-medina-d-agadir-2.jpg',
         caption: 'Couloir voute a l interieur de la Medina d Agadir.',
         altText: 'Couloir interieur de la Medina d Agadir'
       }
@@ -451,7 +451,7 @@ const agadirSites = [
     openingHours: fullWeek('05:00:00', '22:30:00', 'Respect des horaires de priere et des consignes sur place.'),
     photos: [
       {
-        url: 'https://cdn.pixabay.com/photo/2013/03/05/16/07/morocco-90587_1280.jpg',
+        url: '/uploads/sites/seed-agadir-grande-mosquee-mohammed-v-d-agadir-1.jpg',
         caption: 'Minaret de la Grande Mosquee Mohammed V d Agadir.',
         altText: 'Grande Mosquee Mohammed V d Agadir'
       }
@@ -479,7 +479,7 @@ const agadirSites = [
     openingHours: fullWeek('10:00:00', '23:00:00', 'Programmation variable selon les evenements.'),
     photos: [
       {
-        url: 'https://visite-agadir.com/wp-content/uploads/2025/03/Theatre-de-Verdure-1024x576.jpg',
+        url: '/uploads/sites/seed-agadir-theatre-de-verdure-d-agadir-1.jpg',
         caption: 'Scene du Theatre de Verdure amenagee pour un evenement.',
         altText: 'Theatre de Verdure d Agadir'
       }
@@ -592,6 +592,32 @@ async function prepareLocalSitePhotos(site) {
   for (const [index, photo] of photos.entries()) {
     const slug = slugify(site.name) || 'site';
     const knownExtensions = ['.jpg', '.png', '.webp'];
+    const normalizedSourceUrl = String(photo.url || '').trim();
+
+    if (normalizedSourceUrl.startsWith('/uploads/sites/')) {
+      const localFilename = path.basename(normalizedSourceUrl);
+      const localPath = resolveStoredSitePhotoPath(localFilename);
+      if (!(await fileExists(localPath))) {
+        throw new Error(
+          `Asset local introuvable pour ${site.name}: ${normalizedSourceUrl}`
+        );
+      }
+
+      const extension = path.extname(localFilename).toLowerCase();
+      prepared.push({
+        ...photo,
+        url: buildSitePhotoPublicPath(localFilename),
+        thumbnailUrl: buildSitePhotoPublicPath(localFilename),
+        filename: localFilename,
+        mimeType: extension === '.png'
+            ? 'image/png'
+            : extension === '.webp'
+            ? 'image/webp'
+            : 'image/jpeg',
+        size: (await fs.stat(localPath)).size
+      });
+      continue;
+    }
 
     let existingLocalPhoto = null;
     for (const extension of knownExtensions) {

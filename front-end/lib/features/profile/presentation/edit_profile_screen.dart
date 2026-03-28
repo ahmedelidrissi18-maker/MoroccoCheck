@@ -207,78 +207,114 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _firstNameController,
-                      decoration: const InputDecoration(labelText: 'Prenom'),
-                      validator: (value) =>
-                          _requiredText(value, 'votre prenom'),
-                    ),
+              Text('Identite', style: AppTextStyles.heading2),
+              const SizedBox(height: 12),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _firstNameController,
+                              decoration: const InputDecoration(
+                                labelText: 'Prenom',
+                              ),
+                              validator: (value) =>
+                                  _requiredText(value, 'votre prenom'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _lastNameController,
+                              decoration: const InputDecoration(
+                                labelText: 'Nom',
+                              ),
+                              validator: (value) =>
+                                  _requiredText(value, 'votre nom'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(labelText: 'Email'),
+                        validator: _validateEmail,
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _lastNameController,
-                      decoration: const InputDecoration(labelText: 'Nom'),
-                      validator: (value) => _requiredText(value, 'votre nom'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(labelText: 'Email'),
-                validator: _validateEmail,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Telephone',
-                  hintText: '+212600000000',
                 ),
-                validator: _validatePhone,
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _nationalityController,
-                      textCapitalization: TextCapitalization.characters,
-                      decoration: const InputDecoration(
-                        labelText: 'Nationalite',
-                        hintText: 'MA',
-                      ),
-                      validator: _validateNationality,
+              Card(
+                child: Theme(
+                  data: Theme.of(
+                    context,
+                  ).copyWith(dividerColor: Colors.transparent),
+                  child: ExpansionTile(
+                    tilePadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 4,
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _profilePictureController,
-                      decoration: const InputDecoration(
-                        labelText: 'Photo de profil',
-                        hintText: 'https://...',
+                    childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    title: Text(
+                      'Informations complementaires',
+                      style: AppTextStyles.body.copyWith(
+                        fontWeight: FontWeight.w700,
                       ),
-                      validator: _validateUrl,
                     ),
+                    subtitle: Text(
+                      'Photo URL, bio, telephone et nationalite',
+                      style: AppTextStyles.caption.copyWith(
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                    children: [
+                      TextFormField(
+                        controller: _profilePictureController,
+                        decoration: const InputDecoration(
+                          labelText: 'Photo de profil',
+                          hintText: 'https://...',
+                        ),
+                        validator: _validateUrl,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _bioController,
+                        maxLines: 5,
+                        decoration: const InputDecoration(
+                          labelText: 'Bio',
+                          hintText:
+                              'Parlez un peu de vous, de vos voyages ou de votre activite.',
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
+                        decoration: const InputDecoration(
+                          labelText: 'Telephone',
+                          hintText: '+212600000000',
+                        ),
+                        validator: _validatePhone,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _nationalityController,
+                        textCapitalization: TextCapitalization.characters,
+                        decoration: const InputDecoration(
+                          labelText: 'Nationalite',
+                          hintText: 'MA',
+                        ),
+                        validator: _validateNationality,
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _bioController,
-                maxLines: 5,
-                decoration: const InputDecoration(
-                  labelText: 'Bio',
-                  hintText:
-                      'Parlez un peu de vous, de vos voyages ou de votre activite.',
                 ),
               ),
               const SizedBox(height: 24),

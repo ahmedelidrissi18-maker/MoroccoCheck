@@ -7,6 +7,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/network/api_service.dart';
 import '../../../shared/models/user.dart';
+import '../../../shared/widgets/app_network_image.dart';
 import '../../auth/presentation/auth_provider.dart';
 import 'models/site_photo.dart';
 import 'reviews_list.dart';
@@ -202,25 +203,19 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
     final currentUser = authProvider.user;
     final isAuthenticated = authProvider.isAuthenticated;
     final canSubmitCheckin = _canUserSubmitCheckin(currentUser);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     if (_isLoading && _site == null) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Details du site'),
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-        ),
+        appBar: AppBar(title: const Text('Details du site')),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_site == null) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Details du site'),
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-        ),
+        appBar: AppBar(title: const Text('Details du site')),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -261,8 +256,6 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
             SliverAppBar(
               expandedHeight: 320,
               pinned: true,
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
               actions: [
                 IconButton(
                   tooltip: sitesProvider.isFavorite(site.id)
@@ -284,13 +277,12 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
               flexibleSpace: FlexibleSpaceBar(
                 background: Stack(
                   fit: StackFit.expand,
-                  children: [
-                    site.imageUrl.isNotEmpty
-                        ? Image.network(
-                            site.imageUrl,
+                    children: [
+                      site.imageUrl.isNotEmpty
+                        ? AppNetworkImage(
+                            imageUrl: site.imageUrl,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                const SiteDetailPlaceholderImage(),
+                            fallback: const SiteDetailPlaceholderImage(),
                           )
                         : const SiteDetailPlaceholderImage(),
                     DecoratedBox(
@@ -363,7 +355,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
                           icon: Icons.star_rounded,
                           label: 'Note',
                           value: site.rating.toStringAsFixed(1),
-                          accentColor: Colors.amber.shade700,
+                          accentColor: colorScheme.secondary,
                         ),
                         SiteDetailMetricCard(
                           icon: Icons.verified_outlined,
@@ -384,50 +376,33 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: canSubmitCheckin
-                                    ? _handleCheckIn
-                                    : null,
-                                icon: const Icon(Icons.check_circle_outline),
-                                label: const Text('Check-in'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primary,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                ),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: canSubmitCheckin ? _handleCheckIn : null,
+                            icon: const Icon(Icons.check_circle_outline),
+                            label: const Text('Faire un check-in'),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: OutlinedButton.icon(
+                            onPressed: isAuthenticated
+                                ? _handleAddReview
+                                : null,
+                            icon: const Icon(Icons.rate_review),
+                            label: const Text('Ajouter un avis'),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 16,
+                                horizontal: 20,
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: isAuthenticated
-                                    ? _handleAddReview
-                                    : null,
-                                icon: const Icon(Icons.rate_review),
-                                label: const Text('Ajouter un avis'),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: AppColors.primary,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
-                                  ),
-                                  side: const BorderSide(
-                                    color: AppColors.primary,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                         const SizedBox(height: 12),
                         InkWell(
@@ -469,7 +444,8 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
                                       Text(
                                         'Retrouvez ce lieu plus vite et influencez vos recommandations.',
                                         style: AppTextStyles.caption.copyWith(
-                                          color: Colors.grey[700],
+                                          color: colorScheme.onSurface
+                                              .withValues(alpha: 0.7),
                                         ),
                                       ),
                                     ],
@@ -523,7 +499,9 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
                                   Text(
                                     'Le check-in et la publication d avis sont reserves aux utilisateurs connectes.',
                                     style: AppTextStyles.caption.copyWith(
-                                      color: Colors.grey[700],
+                                      color: colorScheme.onSurface.withValues(
+                                        alpha: 0.7,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(height: 8),
@@ -565,7 +543,9 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
                               child: Text(
                                 'Le check-in est reserve aux comptes contributeur, professionnel, moderateur ou admin. Vous pouvez quand meme publier un avis.',
                                 style: AppTextStyles.caption.copyWith(
-                                  color: Colors.grey[800],
+                                  color: colorScheme.onSurface.withValues(
+                                    alpha: 0.8,
+                                  ),
                                 ),
                               ),
                             ),
@@ -605,7 +585,9 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
                   TabBar(
                     controller: _tabController,
                     labelColor: AppColors.primary,
-                    unselectedLabelColor: Colors.grey,
+                    unselectedLabelColor: colorScheme.onSurface.withValues(
+                      alpha: 0.65,
+                    ),
                     indicatorColor: AppColors.primary,
                     tabs: const [
                       Tab(text: 'Info'),
@@ -613,26 +595,29 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
                       Tab(text: 'Photos'),
                     ],
                   ),
-                  SizedBox(
-                    height: 500,
-                    child: TabBarView(
-                      controller: _tabController,
-                      children: [
-                        SiteDetailInfoTab(
-                          site: site,
-                          relatedSites: relatedSites,
-                          onViewMap: () => context.push('/map'),
-                          onOpenItinerary: () => _openItinerary(site),
-                          onRelatedSiteTap: (relatedSite) =>
-                              context.push('/sites/${relatedSite.id}'),
-                        ),
-                        ReviewsList(siteId: site.id),
-                        SiteDetailPhotosTab(
-                          isLoading: _isPhotosLoading,
-                          photos: _photos,
-                        ),
-                      ],
-                    ),
+                  AnimatedBuilder(
+                    animation: _tabController,
+                    builder: (context, child) {
+                      switch (_tabController.index) {
+                        case 1:
+                          return ReviewsList(siteId: site.id);
+                        case 2:
+                          return SiteDetailPhotosTab(
+                            isLoading: _isPhotosLoading,
+                            photos: _photos,
+                          );
+                        case 0:
+                        default:
+                          return SiteDetailInfoTab(
+                            site: site,
+                            relatedSites: relatedSites,
+                            onViewMap: () => context.push('/map'),
+                            onOpenItinerary: () => _openItinerary(site),
+                            onRelatedSiteTap: (relatedSite) =>
+                                context.push('/sites/${relatedSite.id}'),
+                          );
+                      }
+                    },
                   ),
                 ],
               ),

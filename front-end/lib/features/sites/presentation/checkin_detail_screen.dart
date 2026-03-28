@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/network/api_service.dart';
+import '../../../core/utils/media_url.dart';
 import 'checkin_photo_gallery_screen.dart';
 import 'models/checkin_detail.dart';
 
@@ -124,7 +125,7 @@ class _CheckinDetailScreenState extends State<CheckinDetailScreen> {
                     _buildGalleryCard(_checkin!),
                     const SizedBox(height: 16),
                   ],
-                  _buildMetricsCard(_checkin!),
+                  _buildSummaryCard(_checkin!),
                   const SizedBox(height: 16),
                   if (_checkin!.verificationNotes.trim().isNotEmpty) ...[
                     _buildVerificationNotesCard(_checkin!),
@@ -134,7 +135,6 @@ class _CheckinDetailScreenState extends State<CheckinDetailScreen> {
                     _buildCommentCard(_checkin!),
                     const SizedBox(height: 16),
                   ],
-                  _buildLocationCard(_checkin!),
                 ],
               ),
             ),
@@ -252,7 +252,7 @@ class _CheckinDetailScreenState extends State<CheckinDetailScreen> {
                         fit: StackFit.expand,
                         children: [
                           Image.network(
-                            photo.imageUrl,
+                            buildMediaUrl(photo.imageUrl),
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) {
                               return Container(
@@ -366,7 +366,7 @@ class _CheckinDetailScreenState extends State<CheckinDetailScreen> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(10),
                         child: Image.network(
-                          photo.thumbnailUrl ?? photo.imageUrl,
+                          buildMediaUrl(photo.thumbnailUrl ?? photo.imageUrl),
                           width: 70,
                           height: 70,
                           fit: BoxFit.cover,
@@ -395,7 +395,16 @@ class _CheckinDetailScreenState extends State<CheckinDetailScreen> {
     );
   }
 
-  Widget _buildMetricsCard(CheckinDetail checkin) {
+  Widget _buildSummaryCard(CheckinDetail checkin) {
+    final locationLines = <String>[
+      if (checkin.address.trim().isNotEmpty) checkin.address.trim(),
+      if (checkin.city.trim().isNotEmpty || checkin.region.trim().isNotEmpty)
+        [
+          checkin.city.trim(),
+          checkin.region.trim(),
+        ].where((part) => part.isNotEmpty).join(', '),
+    ];
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -403,7 +412,7 @@ class _CheckinDetailScreenState extends State<CheckinDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Informations de validation',
+              'Resume du check-in',
               style: AppTextStyles.heading2.copyWith(fontSize: 20),
             ),
             const SizedBox(height: 12),
@@ -433,6 +442,38 @@ class _CheckinDetailScreenState extends State<CheckinDetailScreen> {
                 'Presence sur place',
                 '${checkin.visitDurationSeconds}s',
               ),
+            const SizedBox(height: 4),
+            const Divider(),
+            const SizedBox(height: 12),
+            Text(
+              'Lieu concerne',
+              style: AppTextStyles.caption.copyWith(
+                color: Colors.grey[700],
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (locationLines.isNotEmpty)
+              Text(locationLines.join('\n'), style: AppTextStyles.body),
+            if (locationLines.isNotEmpty) const SizedBox(height: 12),
+            Text(
+              'Coordonnees du check-in',
+              style: AppTextStyles.caption.copyWith(
+                color: Colors.grey[700],
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${checkin.latitude.toStringAsFixed(5)}, ${checkin.longitude.toStringAsFixed(5)}',
+              style: AppTextStyles.body,
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: () => context.push('/sites/${checkin.siteId}'),
+              icon: const Icon(Icons.place_outlined),
+              label: const Text('Voir la fiche du site'),
+            ),
           ],
         ),
       ),
@@ -454,57 +495,84 @@ class _CheckinDetailScreenState extends State<CheckinDetailScreen> {
         .where((item) => item.isNotEmpty)
         .toList();
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Contexte de verification',
-              style: AppTextStyles.heading2.copyWith(fontSize: 20),
-            ),
-            const SizedBox(height: 10),
-            if (radiusStrategy.isNotEmpty)
-              Text(
-                'Strategie: $radiusStrategy',
-                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
-              ),
-            if (allowedDistance != null || allowedAccuracy != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                [
-                  if (allowedDistance != null) 'Rayon max: $allowedDistance m',
-                  if (allowedAccuracy != null)
-                    'Precision max: $allowedAccuracy m',
-                  if (recommendedDuration != null)
-                    'Duree cible: ${recommendedDuration}s',
-                ].join(' • '),
-                style: AppTextStyles.caption.copyWith(color: Colors.grey[700]),
-              ),
-            ],
-            const SizedBox(height: 12),
-            ...lines.map(
-              (line) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.only(top: 4),
-                      child: Icon(
-                        Icons.verified_outlined,
-                        size: 16,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(line, style: AppTextStyles.body)),
-                  ],
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (radiusStrategy.isNotEmpty)
+          Text(
+            'Strategie: $radiusStrategy',
+            style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+          ),
+        if (allowedDistance != null || allowedAccuracy != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            [
+              if (allowedDistance != null) 'Rayon max: $allowedDistance m',
+              if (allowedAccuracy != null) 'Precision max: $allowedAccuracy m',
+              if (recommendedDuration != null)
+                'Duree cible: ${recommendedDuration}s',
+            ].join(' - '),
+            style: AppTextStyles.caption.copyWith(color: Colors.grey[700]),
+          ),
+        ],
+        const SizedBox(height: 12),
+        ...lines.map(
+          (line) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 4),
+                  child: Icon(
+                    Icons.verified_outlined,
+                    size: 16,
+                    color: AppColors.primary,
+                  ),
                 ),
-              ),
+                const SizedBox(width: 8),
+                Expanded(child: Text(line, style: AppTextStyles.body)),
+              ],
             ),
-          ],
+          ),
+        ),
+      ],
+    );
+
+    if (_hasModerationNotes(checkin)) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Contexte de verification',
+                style: AppTextStyles.heading2.copyWith(fontSize: 20),
+              ),
+              const SizedBox(height: 10),
+              content,
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          title: Text(
+            'Contexte de verification',
+            style: AppTextStyles.heading2.copyWith(fontSize: 20),
+          ),
+          subtitle: Text(
+            'Voir les notes et seuils de verification',
+            style: AppTextStyles.caption.copyWith(color: Colors.grey[700]),
+          ),
+          children: [content],
         ),
       ),
     );
@@ -523,54 +591,6 @@ class _CheckinDetailScreenState extends State<CheckinDetailScreen> {
             ),
             const SizedBox(height: 10),
             Text(checkin.comment!.trim(), style: AppTextStyles.body),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLocationCard(CheckinDetail checkin) {
-    final lines = <String>[
-      if (checkin.address.trim().isNotEmpty) checkin.address.trim(),
-      if (checkin.city.trim().isNotEmpty || checkin.region.trim().isNotEmpty)
-        [
-          checkin.city.trim(),
-          checkin.region.trim(),
-        ].where((part) => part.isNotEmpty).join(', '),
-    ];
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Lieu concerne',
-              style: AppTextStyles.heading2.copyWith(fontSize: 20),
-            ),
-            const SizedBox(height: 12),
-            if (lines.isNotEmpty)
-              Text(lines.join('\n'), style: AppTextStyles.body),
-            if (lines.isNotEmpty) const SizedBox(height: 12),
-            Text(
-              'Coordonnees du check-in',
-              style: AppTextStyles.caption.copyWith(
-                color: Colors.grey[700],
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${checkin.latitude.toStringAsFixed(5)}, ${checkin.longitude.toStringAsFixed(5)}',
-              style: AppTextStyles.body,
-            ),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: () => context.push('/sites/${checkin.siteId}'),
-              icon: const Icon(Icons.place_outlined),
-              label: const Text('Voir la fiche du site'),
-            ),
           ],
         ),
       ),
@@ -614,6 +634,19 @@ class _CheckinDetailScreenState extends State<CheckinDetailScreen> {
         ),
       ),
     );
+  }
+
+  bool _hasModerationNotes(CheckinDetail checkin) {
+    final notes = checkin.verificationNotes.toLowerCase();
+    final status = checkin.validationStatus.toUpperCase();
+
+    return status == 'REJECTED' ||
+        notes.contains('moder') ||
+        notes.contains('rejet') ||
+        notes.contains('reject') ||
+        notes.contains('admin') ||
+        notes.contains('manuel') ||
+        notes.contains('manual');
   }
 
   Future<void> _openPhotoGallery(

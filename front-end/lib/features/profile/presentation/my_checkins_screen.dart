@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/network/api_service.dart';
+import '../../../shared/widgets/app_network_image.dart';
 import 'models/checkin_history_item.dart';
 
 enum _CheckinFilter { all, approved, pending, withPhotos }
@@ -188,8 +189,8 @@ class _MyCheckinsScreenState extends State<MyCheckinsScreen> {
                 controller: _scrollController,
                 padding: const EdgeInsets.all(16),
                 children: [
-                  _buildHeroCard(),
-                  const SizedBox(height: 16),
+                  _buildSummaryBand(),
+                  const SizedBox(height: 12),
                   _buildFilterBar(),
                   const SizedBox(height: 16),
                   if (_items.isEmpty)
@@ -198,12 +199,14 @@ class _MyCheckinsScreenState extends State<MyCheckinsScreen> {
                       message:
                           _error ??
                           'Vos futurs check-ins apparaitront ici avec leur statut de validation.',
+                      showExploreAction: true,
                     )
                   else if (visibleItems.isEmpty)
                     _buildEmptyState(
                       title: 'Aucun resultat pour ce filtre',
                       message:
                           'Essayez un autre filtre pour revoir l ensemble de votre historique.',
+                      showExploreAction: false,
                     )
                   else
                     ...visibleItems.map(_buildCheckinCard),
@@ -230,48 +233,39 @@ class _MyCheckinsScreenState extends State<MyCheckinsScreen> {
     );
   }
 
-  Widget _buildHeroCard() {
+  Widget _buildSummaryBand() {
     final approvedCount = _countFor(_CheckinFilter.approved);
     final pendingCount = _countFor(_CheckinFilter.pending);
     final photosCount = _countFor(_CheckinFilter.withPhotos);
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primary, Color(0xFF0F766E)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
+        color: AppColors.surfaceAlt,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Historique terrain',
-            style: AppTextStyles.heading2.copyWith(
-              color: Colors.white,
-              fontSize: 24,
-            ),
+            'Resume de mes check-ins',
+            style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Retrouvez vos validations, vos preuves photo et les cas encore en attente de verification.',
-            style: AppTextStyles.body.copyWith(
-              color: Colors.white.withValues(alpha: 0.9),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _SummaryPill(label: 'Total', value: '${_items.length}'),
+                const SizedBox(width: 8),
+                _SummaryPill(label: 'Valides', value: '$approvedCount'),
+                const SizedBox(width: 8),
+                _SummaryPill(label: 'A verifier', value: '$pendingCount'),
+                const SizedBox(width: 8),
+                _SummaryPill(label: 'Avec photo', value: '$photosCount'),
+              ],
             ),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _SummaryPill(label: 'Total', value: '${_items.length}'),
-              _SummaryPill(label: 'Valides', value: '$approvedCount'),
-              _SummaryPill(label: 'A verifier', value: '$pendingCount'),
-              _SummaryPill(label: 'Avec photo', value: '$photosCount'),
-            ],
           ),
         ],
       ),
@@ -370,20 +364,26 @@ class _MyCheckinsScreenState extends State<MyCheckinsScreen> {
                 decoration: BoxDecoration(
                   color: AppColors.surfaceAlt,
                   borderRadius: BorderRadius.circular(16),
-                  image: preview != null
-                      ? DecorationImage(
-                          image: NetworkImage(preview),
-                          fit: BoxFit.cover,
-                        )
-                      : null,
                 ),
-                child: preview == null
-                    ? const Icon(
-                        Icons.location_on_outlined,
-                        color: AppColors.primary,
-                        size: 28,
-                      )
-                    : null,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: preview != null
+                      ? AppNetworkImage(
+                          imageUrl: preview,
+                          fit: BoxFit.cover,
+                          fallback: const Center(
+                            child: Icon(
+                              Icons.image_not_supported,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        )
+                      : const Icon(
+                          Icons.location_on_outlined,
+                          color: AppColors.primary,
+                          size: 28,
+                        ),
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -421,11 +421,6 @@ class _MyCheckinsScreenState extends State<MyCheckinsScreen> {
                               : Icons.verified_outlined,
                           label: item.formattedValidationStatus,
                           color: _validationColor(item.validationStatus),
-                        ),
-                        _HistoryBadge(
-                          icon: Icons.stars_outlined,
-                          label: '+${item.pointsEarned} pts',
-                          color: Colors.orange.shade800,
                         ),
                       ],
                     ),
@@ -469,6 +464,7 @@ class _MyCheckinsScreenState extends State<MyCheckinsScreen> {
   Widget _buildEmptyState({
     required String title,
     required String message,
+    required bool showExploreAction,
   }) {
     return Padding(
       padding: const EdgeInsets.only(top: 56),
@@ -491,6 +487,17 @@ class _MyCheckinsScreenState extends State<MyCheckinsScreen> {
             textAlign: TextAlign.center,
             style: AppTextStyles.body.copyWith(color: Colors.grey[600]),
           ),
+          if (showExploreAction) ...[
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => context.go('/sites'),
+                icon: const Icon(Icons.explore_outlined),
+                label: const Text('Explorer des lieux'),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -508,8 +515,9 @@ class _SummaryPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.14),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -517,14 +525,14 @@ class _SummaryPill extends StatelessWidget {
           Text(
             label,
             style: AppTextStyles.caption.copyWith(
-              color: Colors.white.withValues(alpha: 0.82),
+              color: Colors.grey[600],
             ),
           ),
           const SizedBox(height: 2),
           Text(
             value,
             style: AppTextStyles.body.copyWith(
-              color: Colors.white,
+              color: AppColors.primary,
               fontWeight: FontWeight.w700,
             ),
           ),

@@ -144,6 +144,52 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
+  int get _activeFilterCount {
+    var count = 0;
+    if (_selectedCategoryId != null) count++;
+    if (_selectedSubcategoryId != null ||
+        (_selectedLegacySubcategory != null &&
+            _selectedLegacySubcategory!.isNotEmpty)) {
+      count++;
+    }
+    if (_freshnessFilter != _FreshnessFilter.all) count++;
+    return count;
+  }
+
+  Future<void> _openFiltersSheet(SitesProvider sitesProvider) async {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: colorScheme.surface,
+      showDragHandle: true,
+      builder: (bottomSheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            void refreshFilters(VoidCallback update) {
+              setState(update);
+              setSheetState(() {});
+            }
+
+            return SafeArea(
+              child: FractionallySizedBox(
+                heightFactor: 0.72,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                  child: _buildFilterSheetContent(
+                    sitesProvider,
+                    refreshFilters,
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer2<MapProvider, SitesProvider>(
@@ -162,11 +208,6 @@ class _MapScreenState extends State<MapScreen> {
                 icon: const Icon(Icons.restart_alt),
                 onPressed: _resetFilters,
                 tooltip: 'Reinitialiser les filtres',
-              ),
-              IconButton(
-                icon: const Icon(Icons.my_location),
-                onPressed: _centerOnUserLocation,
-                tooltip: 'Centrer sur ma position',
               ),
             ],
           ),
@@ -189,7 +230,21 @@ class _MapScreenState extends State<MapScreen> {
                   ),
                 ],
               ),
-              _buildFilterPanel(sitesProvider),
+              SafeArea(
+                minimum: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: FilledButton.icon(
+                    onPressed: () => _openFiltersSheet(sitesProvider),
+                    icon: const Icon(Icons.tune),
+                    label: Text(
+                      _activeFilterCount > 0
+                          ? 'Filtres ($_activeFilterCount)'
+                          : 'Filtres',
+                    ),
+                  ),
+                ),
+              ),
               if (mapProvider.isLoading || sitesProvider.isLoading)
                 const Positioned(
                   top: 180,
@@ -299,198 +354,158 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Widget _buildFilterPanel(SitesProvider sitesProvider) {
+  Widget _buildFilterSheetContent(
+    SitesProvider sitesProvider,
+    void Function(VoidCallback update) refreshFilters,
+  ) {
     final subcategoryOptions = sitesProvider.getSubcategoryOptionsFor(
       _selectedCategoryId,
     );
-    final screenHeight = MediaQuery.of(context).size.height;
-
-    return SafeArea(
-      minimum: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: 720,
-            maxHeight: screenHeight * 0.34,
-          ),
-          child: Card(
-            margin: EdgeInsets.zero,
-            clipBehavior: Clip.antiAlias,
-            color: AppColors.surface.withValues(alpha: 0.97),
-            elevation: 6,
-            shadowColor: Colors.black.withValues(alpha: 0.12),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.tune,
-                        color: AppColors.primary,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Filtres de voyage',
-                          style: AppTextStyles.bodyStrong,
-                        ),
-                      ),
-                      if (_selectedCategoryId != null ||
-                          _selectedSubcategoryId != null ||
-                          (_selectedLegacySubcategory != null &&
-                              _selectedLegacySubcategory!.isNotEmpty) ||
-                          _freshnessFilter != _FreshnessFilter.all)
-                        TextButton(
-                          onPressed: _resetFilters,
-                          child: const Text('Effacer'),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _buildCategoryChip(
-                        'Toutes',
-                        _selectedCategoryId == null,
-                        () {
-                          setState(() {
-                            _selectedCategoryId = null;
-                            _selectedSubcategoryId = null;
-                            _selectedLegacySubcategory = null;
-                          });
-                        },
-                      ),
-                      ...sitesProvider.topLevelCategories.map(
-                        (SiteCategory category) => _buildCategoryChip(
-                          category.name,
-                          _selectedCategoryId == category.id,
-                          () {
-                            setState(() {
-                              _selectedCategoryId = category.id;
-                              _selectedSubcategoryId = null;
-                              _selectedLegacySubcategory = null;
-                            });
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (_selectedCategoryId != null &&
-                      subcategoryOptions.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      'Sous-categories',
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.textMuted,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _buildCategoryChip(
-                          'Toutes sous-categories',
-                          _selectedSubcategoryId == null &&
-                              (_selectedLegacySubcategory == null ||
-                                  _selectedLegacySubcategory!.isEmpty),
-                          () {
-                            setState(() {
-                              _selectedSubcategoryId = null;
-                              _selectedLegacySubcategory = null;
-                            });
-                          },
-                        ),
-                        ...subcategoryOptions.map(
-                          (SiteSubcategoryOption option) => _buildCategoryChip(
-                            option.label,
-                            option.id != null
-                                ? _selectedSubcategoryId == option.id
-                                : _selectedSubcategoryId == null &&
-                                      _selectedLegacySubcategory
-                                              ?.toLowerCase() ==
-                                          option.legacyValue?.toLowerCase(),
-                            () {
-                              setState(() {
-                                _selectedSubcategoryId = option.id;
-                                _selectedLegacySubcategory = option.legacyValue;
-                              });
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                  if (sitesProvider.availableCategories.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        'Categories backend indisponibles pour le moment.',
-                        style: AppTextStyles.caption.copyWith(
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _buildFreshnessChip(
-                        label: 'Tous',
-                        color: Colors.grey,
-                        selected: _freshnessFilter == _FreshnessFilter.all,
-                        onTap: () {
-                          setState(() {
-                            _freshnessFilter = _FreshnessFilter.all;
-                          });
-                        },
-                      ),
-                      _buildFreshnessChip(
-                        label: 'Frais',
-                        color: AppColors.freshnessGreen,
-                        selected: _freshnessFilter == _FreshnessFilter.fresh,
-                        onTap: () {
-                          setState(() {
-                            _freshnessFilter = _FreshnessFilter.fresh;
-                          });
-                        },
-                      ),
-                      _buildFreshnessChip(
-                        label: 'Moyen',
-                        color: AppColors.freshnessOrange,
-                        selected: _freshnessFilter == _FreshnessFilter.moderate,
-                        onTap: () {
-                          setState(() {
-                            _freshnessFilter = _FreshnessFilter.moderate;
-                          });
-                        },
-                      ),
-                      _buildFreshnessChip(
-                        label: 'A verifier',
-                        color: AppColors.freshnessRed,
-                        selected: _freshnessFilter == _FreshnessFilter.stale,
-                        onTap: () {
-                          setState(() {
-                            _freshnessFilter = _FreshnessFilter.stale;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.tune, color: AppColors.primary, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('Filtres de voyage', style: AppTextStyles.bodyStrong),
+            ),
+            if (_activeFilterCount > 0)
+              TextButton(
+                onPressed: () => refreshFilters(_resetFilters),
+                child: const Text('Effacer'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _buildCategoryChip('Toutes', _selectedCategoryId == null, () {
+              refreshFilters(() {
+                _selectedCategoryId = null;
+                _selectedSubcategoryId = null;
+                _selectedLegacySubcategory = null;
+              });
+            }),
+            ...sitesProvider.topLevelCategories.map(
+              (SiteCategory category) => _buildCategoryChip(
+                category.name,
+                _selectedCategoryId == category.id,
+                () {
+                  refreshFilters(() {
+                    _selectedCategoryId = category.id;
+                    _selectedSubcategoryId = null;
+                    _selectedLegacySubcategory = null;
+                  });
+                },
               ),
             ),
-          ),
+          ],
         ),
-      ),
+        if (_selectedCategoryId != null && subcategoryOptions.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Text(
+            'Sous-categories',
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.textMuted,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildCategoryChip(
+                'Toutes sous-categories',
+                _selectedSubcategoryId == null &&
+                    (_selectedLegacySubcategory == null ||
+                        _selectedLegacySubcategory!.isEmpty),
+                () {
+                  refreshFilters(() {
+                    _selectedSubcategoryId = null;
+                    _selectedLegacySubcategory = null;
+                  });
+                },
+              ),
+              ...subcategoryOptions.map(
+                (SiteSubcategoryOption option) => _buildCategoryChip(
+                  option.label,
+                  option.id != null
+                      ? _selectedSubcategoryId == option.id
+                      : _selectedSubcategoryId == null &&
+                            _selectedLegacySubcategory?.toLowerCase() ==
+                                option.legacyValue?.toLowerCase(),
+                  () {
+                    refreshFilters(() {
+                      _selectedSubcategoryId = option.id;
+                      _selectedLegacySubcategory = option.legacyValue;
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
+        if (sitesProvider.availableCategories.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              'Categories backend indisponibles pour le moment.',
+              style: AppTextStyles.caption.copyWith(color: Colors.grey[600]),
+            ),
+          ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _buildFreshnessChip(
+              label: 'Tous',
+              color: Colors.grey,
+              selected: _freshnessFilter == _FreshnessFilter.all,
+              onTap: () {
+                refreshFilters(() {
+                  _freshnessFilter = _FreshnessFilter.all;
+                });
+              },
+            ),
+            _buildFreshnessChip(
+              label: 'Frais',
+              color: AppColors.freshnessGreen,
+              selected: _freshnessFilter == _FreshnessFilter.fresh,
+              onTap: () {
+                refreshFilters(() {
+                  _freshnessFilter = _FreshnessFilter.fresh;
+                });
+              },
+            ),
+            _buildFreshnessChip(
+              label: 'Moyen',
+              color: AppColors.freshnessOrange,
+              selected: _freshnessFilter == _FreshnessFilter.moderate,
+              onTap: () {
+                refreshFilters(() {
+                  _freshnessFilter = _FreshnessFilter.moderate;
+                });
+              },
+            ),
+            _buildFreshnessChip(
+              label: 'A verifier',
+              color: AppColors.freshnessRed,
+              selected: _freshnessFilter == _FreshnessFilter.stale,
+              onTap: () {
+                refreshFilters(() {
+                  _freshnessFilter = _FreshnessFilter.stale;
+                });
+              },
+            ),
+          ],
+        ),
+      ],
     );
   }
 

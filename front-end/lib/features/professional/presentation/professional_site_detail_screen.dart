@@ -254,15 +254,6 @@ class _HeroSection extends StatelessWidget {
                 label: verification.label,
                 backgroundColor: Colors.white.withValues(alpha: 0.16),
               ),
-              _HeroChip(
-                icon: site.isProfessionalClaimed
-                    ? Icons.verified_user_outlined
-                    : Icons.pending_outlined,
-                label: site.isProfessionalClaimed
-                    ? 'Lieu revendique'
-                    : 'Lieu non revendique',
-                backgroundColor: Colors.white.withValues(alpha: 0.16),
-              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -273,65 +264,40 @@ class _HeroSection extends StatelessWidget {
               fontSize: 28,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            '${site.categoryName} · ${site.city}, ${site.region}',
-            style: AppTextStyles.body.copyWith(
-              color: Colors.white.withValues(alpha: 0.92),
-            ),
-          ),
           const SizedBox(height: 16),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              _MetricBadge(
-                label: 'Fraicheur',
-                value: '${site.freshnessScore}%',
-              ),
-              _MetricBadge(
-                label: 'Note',
-                value: site.rating > 0 ? site.rating.toStringAsFixed(1) : 'N/A',
-              ),
-              _MetricBadge(label: 'Avis', value: '${site.totalReviews}'),
-              _MetricBadge(label: 'Favoris', value: '${site.favoritesCount}'),
-              _MetricBadge(
-                label: 'Offre',
-                value: site.subscriptionPlan ?? 'FREE',
-              ),
-            ],
-          ),
-          if (site.description.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Text(
-              site.description,
-              style: AppTextStyles.body.copyWith(
-                color: Colors.white.withValues(alpha: 0.9),
-              ),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _MetricBadge(label: 'Vues', value: '${site.viewsCount}'),
+                const SizedBox(width: 10),
+                _MetricBadge(
+                  label: 'Note',
+                  value: site.rating > 0 ? site.rating.toStringAsFixed(1) : 'N/A',
+                ),
+                const SizedBox(width: 10),
+                _MetricBadge(label: 'Avis', value: '${site.totalReviews}'),
+                const SizedBox(width: 10),
+                _MetricBadge(
+                  label: 'Fraicheur',
+                  value: '${site.freshnessScore}%',
+                ),
+              ],
             ),
-          ],
+          ),
           const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Vues: ${site.viewsCount} · Proprio: ${site.ownerName.isNotEmpty ? site.ownerName : 'Votre compte'}',
-                  style: AppTextStyles.caption.copyWith(
-                    color: Colors.white.withValues(alpha: 0.82),
-                  ),
-                ),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(vertical: 14),
               ),
-              const SizedBox(width: 12),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: AppColors.primary,
-                ),
-                onPressed: onEdit,
-                icon: const Icon(Icons.edit_outlined),
-                label: const Text('Modifier'),
-              ),
-            ],
+              onPressed: onEdit,
+              icon: const Icon(Icons.edit_outlined),
+              label: const Text('Modifier'),
+            ),
           ),
         ],
       ),
@@ -339,14 +305,24 @@ class _HeroSection extends StatelessWidget {
   }
 }
 
-class _AnalyticsSection extends StatelessWidget {
+class _AnalyticsSection extends StatefulWidget {
   final ProfessionalSite site;
   final ProfessionalSiteAnalytics analytics;
 
   const _AnalyticsSection({required this.site, required this.analytics});
 
   @override
+  State<_AnalyticsSection> createState() => _AnalyticsSectionState();
+}
+
+class _AnalyticsSectionState extends State<_AnalyticsSection> {
+  bool _showNarration = false;
+
+  @override
   Widget build(BuildContext context) {
+    final site = widget.site;
+    final analytics = widget.analytics;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -381,33 +357,49 @@ class _AnalyticsSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 14),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceAlt,
-            borderRadius: BorderRadius.circular(16),
+        OutlinedButton.icon(
+          onPressed: () {
+            setState(() {
+              _showNarration = !_showNarration;
+            });
+          },
+          icon: Icon(
+            _showNarration
+                ? Icons.visibility_off_outlined
+                : Icons.insights_outlined,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Lecture rapide',
-                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Le lieu totalise ${analytics.publishedReviews} avis publies, ${analytics.pendingReviews} en attente, et une note moyenne recente de ${analytics.averageRating30d.toStringAsFixed(1)} sur les 30 derniers jours.',
-                style: AppTextStyles.body.copyWith(color: Colors.grey[800]),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Sur la meme periode, ${analytics.recentReviews30d} nouvel${analytics.recentReviews30d > 1 ? 's avis' : ' avis'} et ${analytics.recentCheckins30d} check-in${analytics.recentCheckins30d > 1 ? 's' : ''} ont renforce la fiabilite et la visibilite de la fiche.',
-                style: AppTextStyles.body.copyWith(color: Colors.grey[800]),
-              ),
-            ],
-          ),
+          label: Text(_showNarration ? 'Masquer l analyse' : 'Voir l analyse'),
         ),
+        if (_showNarration) ...[
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceAlt,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Lecture rapide',
+                  style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Le lieu totalise ${analytics.publishedReviews} avis publies, ${analytics.pendingReviews} en attente, et une note moyenne recente de ${analytics.averageRating30d.toStringAsFixed(1)} sur les 30 derniers jours.',
+                  style: AppTextStyles.body.copyWith(color: Colors.grey[800]),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Sur la meme periode, ${analytics.recentReviews30d} nouvel${analytics.recentReviews30d > 1 ? 's avis' : ' avis'} et ${analytics.recentCheckins30d} check-in${analytics.recentCheckins30d > 1 ? 's' : ''} ont renforce la fiabilite et la visibilite de la fiche.',
+                  style: AppTextStyles.body.copyWith(color: Colors.grey[800]),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -1276,7 +1268,7 @@ String _openingText(ProfessionalOpeningHour slot) {
   if (notes.isEmpty) {
     return base;
   }
-  return '$base · $notes';
+  return '$base - $notes';
 }
 
 String? _formatHour(String? value) {

@@ -145,7 +145,7 @@ class _ProfessionalClaimSiteScreenState
                 suffixIcon: IconButton(
                   tooltip: 'Rechercher',
                   onPressed: _loadSites,
-                  icon: const Icon(Icons.arrow_forward),
+                  icon: const Icon(Icons.search),
                 ),
               ),
             ),
@@ -198,6 +198,23 @@ class _ProfessionalClaimSiteScreenState
             else
               ..._sites.map((site) {
                 final isBusy = _isClaiming && _claimingSiteId == site.id;
+                final infoPills = <Widget>[
+                  if (site.viewsCount > 0)
+                    _MiniInfo(
+                      icon: Icons.visibility_outlined,
+                      label: '${site.viewsCount} vues',
+                    ),
+                  if (site.favoritesCount > 0)
+                    _MiniInfo(
+                      icon: Icons.favorite_outline,
+                      label: '${site.favoritesCount} favoris',
+                    ),
+                  if (site.totalReviews > 0)
+                    _MiniInfo(
+                      icon: Icons.reviews_outlined,
+                      label: '${site.totalReviews} avis',
+                    ),
+                ];
 
                 return Card(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -253,26 +270,16 @@ class _ProfessionalClaimSiteScreenState
                             ),
                           ),
                         ],
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            _MiniInfo(
-                              icon: Icons.visibility_outlined,
-                              label: '${site.viewsCount} vues',
-                            ),
-                            _MiniInfo(
-                              icon: Icons.favorite_outline,
-                              label: '${site.favoritesCount} favoris',
-                            ),
-                            _MiniInfo(
-                              icon: Icons.reviews_outlined,
-                              label: '${site.totalReviews} avis',
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
+                        if (infoPills.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: infoPills,
+                          ),
+                          const SizedBox(height: 14),
+                        ] else
+                          const SizedBox(height: 14),
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(

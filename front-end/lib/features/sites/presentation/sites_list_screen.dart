@@ -3,9 +3,9 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../shared/widgets/site_preview_card.dart';
 import '../../../shared/models/site_category.dart';
 import '../../map/presentation/map_provider.dart';
-import 'site_card.dart';
 import 'sites/site.dart';
 import 'sites_provider.dart';
 
@@ -19,6 +19,7 @@ class SitesListScreen extends StatefulWidget {
 class _SitesListScreenState extends State<SitesListScreen> {
   final TextEditingController _searchController = TextEditingController();
   bool _isApplyingNearbyMode = false;
+  bool _showAdvancedFilters = false;
   static const List<SiteCurationOption> _curationOptions = [
     SiteCurationOption(
       key: 'famille',
@@ -151,9 +152,9 @@ class _SitesListScreenState extends State<SitesListScreen> {
     try {
       await sitesProvider.disableNearbyMode();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Mode autour de moi retire.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mode autour de moi retire.')),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -174,6 +175,23 @@ class _SitesListScreenState extends State<SitesListScreen> {
     }
 
     sitesProvider.setSortOption(option);
+  }
+
+  bool _shouldHideDiscoveryRail(SitesProvider sitesProvider) {
+    return sitesProvider.searchQuery.isNotEmpty ||
+        sitesProvider.selectedCategoryId != null ||
+        sitesProvider.selectedSubcategoryId != null ||
+        (sitesProvider.selectedSubcategory?.isNotEmpty ?? false);
+  }
+
+  List<Site> _discoveryRailSites(SitesProvider sitesProvider) {
+    final seenIds = <String>{};
+    final merged = <Site>[
+      ...sitesProvider.recommendedSites,
+      ...sitesProvider.recentViewedSites,
+    ];
+
+    return merged.where((site) => seenIds.add(site.id)).take(6).toList();
   }
 
   @override
@@ -215,6 +233,10 @@ class _SitesListScreenState extends State<SitesListScreen> {
       body: Consumer<SitesProvider>(
         builder: (context, sitesProvider, child) {
           final nearestSite = _nearestSite(sitesProvider.filteredSites);
+          final discoveryRailSites = _discoveryRailSites(sitesProvider);
+          final showDiscoveryRail =
+              discoveryRailSites.isNotEmpty &&
+              !_shouldHideDiscoveryRail(sitesProvider);
 
           if (sitesProvider.isLoading && sitesProvider.sites.isEmpty) {
             return const Center(child: CircularProgressIndicator());
@@ -292,21 +314,13 @@ class _SitesListScreenState extends State<SitesListScreen> {
                     ),
                   ),
                 ),
-                _buildAdvancedFilters(sitesProvider),
-                if (sitesProvider.recommendedSites.isNotEmpty)
+                _buildAdvancedFiltersSection(sitesProvider),
+                if (showDiscoveryRail)
                   _buildSiteRail(
-                    title: 'Suggestions pour vous',
+                    title: 'Reprendre votre exploration',
                     subtitle:
-                        'Des lieux deduits de vos favoris, de vos visites recentes et des meilleurs scores.',
-                    sites: sitesProvider.recommendedSites.take(6).toList(),
-                    sitesProvider: sitesProvider,
-                  ),
-                if (sitesProvider.recentViewedSites.isNotEmpty)
-                  _buildSiteRail(
-                    title: 'Recemment consultes',
-                    subtitle:
-                        'Retrouvez rapidement les derniers lieux ouverts pendant votre navigation.',
-                    sites: sitesProvider.recentViewedSites.take(6).toList(),
+                        'Suggestions et lieux recemment consultes regroupes dans une seule section.',
+                    sites: discoveryRailSites,
                     sitesProvider: sitesProvider,
                   ),
                 Padding(
@@ -483,7 +497,7 @@ class _SitesListScreenState extends State<SitesListScreen> {
                   _buildEmptyState()
                 else
                   ...sitesProvider.filteredSites.map(
-                    (site) => SiteCard(
+                    (site) => SitePreviewCard(
                       site: site,
                       onTap: () => _onSiteTap(site.id),
                       isFavorite: sitesProvider.isFavorite(site.id),
@@ -494,6 +508,74 @@ class _SitesListScreenState extends State<SitesListScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildAdvancedFiltersSection(SitesProvider sitesProvider) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Column(
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(24),
+            onTap: () {
+              setState(() {
+                _showAdvancedFilters = !_showAdvancedFilters;
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.tune, color: AppColors.primaryDeep),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Filtres intelligents',
+                          style: AppTextStyles.bodyStrong.copyWith(
+                            fontSize: 17,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _showAdvancedFilters
+                              ? 'Masquer les options avancees'
+                              : 'Afficher les options avancees pour affiner la liste',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    _showAdvancedFilters
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    color: AppColors.primaryDeep,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: _buildAdvancedFilters(sitesProvider),
+            crossFadeState: _showAdvancedFilters
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 180),
+          ),
+        ],
       ),
     );
   }
@@ -571,8 +653,7 @@ class _SitesListScreenState extends State<SitesListScreen> {
               ),
               _summaryPill(
                 icon: Icons.route_outlined,
-                label: sitesProvider.isNearbyModeEnabled &&
-                        nearestSite != null
+                label: sitesProvider.isNearbyModeEnabled && nearestSite != null
                     ? 'Plus proche ${nearestSite.formattedDistance}'
                     : sitesProvider.selectedCurationKey == null
                     ? sitesProvider.secondaryLocationLabel
@@ -589,7 +670,7 @@ class _SitesListScreenState extends State<SitesListScreen> {
     final nearestSite = _nearestSite(sitesProvider.filteredSites);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      padding: const EdgeInsets.only(top: 12),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -713,7 +794,8 @@ class _SitesListScreenState extends State<SitesListScreen> {
                         if (nearestSite != null)
                           _buildModePill(
                             icon: Icons.near_me_outlined,
-                            label: 'Plus proche ${nearestSite.formattedDistance}',
+                            label:
+                                'Plus proche ${nearestSite.formattedDistance}',
                           ),
                       ],
                     ),
@@ -883,7 +965,7 @@ class _SitesListScreenState extends State<SitesListScreen> {
           ),
         ),
         SizedBox(
-          height: 210,
+          height: 228,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -891,223 +973,17 @@ class _SitesListScreenState extends State<SitesListScreen> {
             separatorBuilder: (context, index) => const SizedBox(width: 12),
             itemBuilder: (context, index) {
               final site = sites[index];
-              return _buildCompactSiteCard(site, sitesProvider);
+              return SitePreviewCard.compact(
+                site: site,
+                onTap: () => _onSiteTap(site.id),
+                isFavorite: sitesProvider.isFavorite(site.id),
+                onToggleFavorite: () => _toggleFavorite(site.id),
+              );
             },
           ),
         ),
         const SizedBox(height: 14),
       ],
-    );
-  }
-
-  Widget _buildCompactSiteCard(Site site, SitesProvider sitesProvider) {
-    return SizedBox(
-      width: 220,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(22),
-          onTap: () => _onSiteTap(site.id),
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: AppColors.border),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 14,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(22),
-                      ),
-                      child: SizedBox(
-                        height: 110,
-                        width: double.infinity,
-                        child: site.imageUrl.isNotEmpty
-                            ? Image.network(
-                                site.imageUrl,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    _buildCompactPlaceholder(),
-                              )
-                            : _buildCompactPlaceholder(),
-                      ),
-                    ),
-                    if (site.hasDistance)
-                      Positioned(
-                        top: 8,
-                        left: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 7,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0F4C3A)
-                                .withValues(alpha: 0.92),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.near_me_outlined,
-                                size: 13,
-                                color: Colors.white,
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                site.formattedDistance,
-                                style: AppTextStyles.caption.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: InkWell(
-                        onTap: () => _toggleFavorite(site.id),
-                        borderRadius: BorderRadius.circular(999),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.92),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            sitesProvider.isFavorite(site.id)
-                                ? Icons.favorite_rounded
-                                : Icons.favorite_border_rounded,
-                            size: 18,
-                            color: sitesProvider.isFavorite(site.id)
-                                ? AppColors.error
-                                : AppColors.primaryDeep,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        site.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.body.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        [
-                          if (site.city.isNotEmpty) site.city,
-                          if (site.category.isNotEmpty) site.category,
-                        ].join(' • '),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.caption.copyWith(
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                      if (site.hasDistance) ...[
-                        const SizedBox(height: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE8F3FF),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.route_outlined,
-                                size: 14,
-                                color: AppColors.primaryDeep,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                site.formattedDistance,
-                                style: AppTextStyles.caption.copyWith(
-                                  color: AppColors.primaryDeep,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.star_rounded,
-                            size: 16,
-                            color: AppColors.accentGold,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            site.rating.toStringAsFixed(1),
-                            style: AppTextStyles.caption.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const Spacer(),
-                          if (site.hasDistance)
-                            Text(
-                              'Serveur',
-                              style: AppTextStyles.caption.copyWith(
-                                color: AppColors.primaryDeep,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            )
-                          else
-                            Text(
-                              '${site.freshnessScore}% fiable',
-                              style: AppTextStyles.caption.copyWith(
-                                color: AppColors.primaryDeep,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCompactPlaceholder() {
-    return Container(
-      color: Colors.grey[200],
-      alignment: Alignment.center,
-      child: Icon(Icons.place_outlined, color: Colors.grey[500]),
     );
   }
 
@@ -1164,6 +1040,12 @@ class _SitesListScreenState extends State<SitesListScreen> {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 420;
+    final maxLabelWidth = isSmallScreen
+        ? (icon == null ? 148.0 : 128.0)
+        : (icon == null ? 190.0 : 168.0);
+
     return FilterChip(
       avatar: icon == null
           ? null
@@ -1172,7 +1054,15 @@ class _SitesListScreenState extends State<SitesListScreen> {
               size: 16,
               color: isSelected ? Colors.white : AppColors.primaryDeep,
             ),
-      label: Text(label),
+      label: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxLabelWidth),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          softWrap: false,
+        ),
+      ),
       selected: isSelected,
       onSelected: (_) => onTap(),
       backgroundColor: AppColors.surface,
@@ -1182,7 +1072,12 @@ class _SitesListScreenState extends State<SitesListScreen> {
         color: isSelected ? Colors.white : AppColors.textPrimary,
         fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(
+        horizontal: isSmallScreen ? 10 : 12,
+        vertical: 8,
+      ),
+      labelPadding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 2 : 4),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(999),
         side: BorderSide(

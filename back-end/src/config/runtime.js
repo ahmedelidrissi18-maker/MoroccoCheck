@@ -23,6 +23,10 @@ const DEFAULT_DEV_CORS_ORIGINS = [
   'http://127.0.0.1:5173',
   'http://localhost:5173'
 ];
+const MINIMUM_ALLOWED_CORS_ORIGINS = [
+  'http://127.0.0.1:3001',
+  'http://localhost:3001'
+];
 
 function parseNumber(value, fallback) {
   const parsed = Number(value);
@@ -52,6 +56,10 @@ function parseList(value) {
     .filter(Boolean);
 }
 
+function uniqueList(values) {
+  return [...new Set(values.map((item) => String(item).trim()).filter(Boolean))];
+}
+
 function parseJson(value, fallback = null) {
   const rawValue = String(value || '').trim();
   if (!rawValue) {
@@ -68,14 +76,20 @@ function parseJson(value, fallback = null) {
 function resolveAllowedOrigins(nodeEnv, rawOrigins) {
   const configuredOrigins = parseList(rawOrigins);
   if (configuredOrigins.length) {
-    return configuredOrigins;
+    return uniqueList([
+      ...configuredOrigins,
+      ...MINIMUM_ALLOWED_CORS_ORIGINS
+    ]);
   }
 
   if (nodeEnv === 'development') {
-    return DEFAULT_DEV_CORS_ORIGINS;
+    return uniqueList([
+      ...DEFAULT_DEV_CORS_ORIGINS,
+      ...MINIMUM_ALLOWED_CORS_ORIGINS
+    ]);
   }
 
-  return [];
+  return uniqueList(MINIMUM_ALLOWED_CORS_ORIGINS);
 }
 
 const nodeEnv = process.env.NODE_ENV || 'development';

@@ -69,7 +69,7 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Your Trusted Food Safety Companion',
+              'Découvrez le patrimoine touristique',
               style: AppTextStyles.caption.copyWith(
                 color: Colors.grey[600],
                 fontSize: 14,

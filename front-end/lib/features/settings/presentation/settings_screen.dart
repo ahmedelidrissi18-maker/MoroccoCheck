@@ -10,6 +10,7 @@ import '../../../core/network/api_service.dart';
 import '../../../core/notifications/notification_service.dart';
 import '../../../core/security/biometric_auth_service.dart';
 import '../../../core/storage/storage_service.dart';
+import '../../../core/theme/spacing_tokens.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -26,6 +27,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
   bool _preciseLocationEnabled = true;
   bool _technicalInfoVisible = false;
+  bool _showAdvancedOptions = false;
   bool _biometricAuthEnabled = false;
   bool _biometricAuthAvailable = false;
   bool _locationServiceEnabled = false;
@@ -59,7 +61,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _isLoading = false;
     });
 
-    final biometricAvailable = await BiometricAuthService.instance.isAvailable();
+    final biometricAvailable = await BiometricAuthService.instance
+        .isAvailable();
     if (!mounted) return;
     setState(() {
       _biometricAuthAvailable = biometricAvailable;
@@ -109,8 +112,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     if (value) {
-      final authenticated =
-          await BiometricAuthService.instance.authenticateForUnlock();
+      final authenticated = await BiometricAuthService.instance
+          .authenticateForUnlock();
       if (!authenticated) {
         if (!mounted) return;
         _showInfoSnack(
@@ -329,12 +332,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: RefreshIndicator(
         onRefresh: _loadSettings,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: SpacingTokens.allL,
           children: [
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(SpacingTokens.xl),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(RadiusTokens.card),
                 gradient: const LinearGradient(
                   colors: [AppColors.primary, Color(0xFF0F766E)],
                   begin: Alignment.topLeft,
@@ -347,7 +350,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const Row(
                     children: [
                       Icon(Icons.tune_rounded, color: Colors.white, size: 28),
-                      SizedBox(width: 10),
+                      SizedBox(width: SpacingTokens.m),
                       Text(
                         'Preferences de l application',
                         style: TextStyle(
@@ -358,7 +361,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: SpacingTokens.m),
                   Text(
                     'Personnalisez votre experience locale autour de ${AppConstants.focusCity}, gelez vos preferences et gardez un oeil sur l etat de la localisation.',
                     style: AppTextStyles.body.copyWith(color: Colors.white),
@@ -366,7 +369,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: SpacingTokens.l),
             _SectionCard(
               title: 'Preferences',
               icon: Icons.settings_suggest_outlined,
@@ -399,20 +402,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   value: _preciseLocationEnabled,
                   onChanged: _togglePreciseLocation,
                   activeThumbColor: AppColors.primary,
-                  title: const Text('Localisation precise'),
+                  title: const Text('Mode localisation fine'),
                   subtitle: const Text(
-                    'Favoriser une position fine pour les parcours carte et check-in',
+                    'Preferer une position detaillee pour la carte et les check-ins',
                   ),
                 ),
-                SwitchListTile(
-                  value: _technicalInfoVisible,
-                  onChanged: _toggleTechnicalInfo,
-                  activeThumbColor: AppColors.primary,
-                  title: const Text('Afficher les details techniques'),
-                  subtitle: const Text(
-                    'Montrer la configuration locale et les infos de debug utiles',
-                  ),
-                ),
+              ],
+            ),
+            const SizedBox(height: SpacingTokens.l),
+            _SectionCard(
+              title: 'Permissions',
+              icon: Icons.verified_user_outlined,
+              children: [
                 SwitchListTile(
                   value: _biometricAuthEnabled,
                   onChanged: _toggleBiometricAuth,
@@ -424,55 +425,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         : 'Aucune biométrie compatible detectee sur cet appareil',
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _SectionCard(
-              title: 'Connexion API',
-              icon: Icons.cloud_outlined,
-              children: [
-                _InfoRow(label: 'API active', value: _apiBaseUrl),
-                _InfoRow(
-                  label: 'API par defaut',
-                  value: AppConstants.defaultBaseUrl,
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.edit_outlined),
-                  title: const Text('Modifier l URL API'),
-                  subtitle: const Text(
-                    'Changer l adresse du backend de cette installation locale',
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _editApiBaseUrl,
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.copy_outlined),
-                  title: const Text('Copier l URL active'),
-                  subtitle: const Text(
-                    'Recopier rapidement l adresse actuellement utilisee',
-                  ),
-                  trailing: const Icon(Icons.copy),
-                  onTap: _copyApiBaseUrl,
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.restore_outlined),
-                  title: const Text('Revenir a l URL par defaut'),
-                  subtitle: const Text(
-                    'Supprimer l override local et reutiliser la configuration standard',
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _resetApiBaseUrl,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _SectionCard(
-              title: 'Localisation',
-              icon: Icons.location_on_outlined,
-              children: [
                 _StatusRow(
                   label: 'Service de localisation',
                   state: _locationServiceEnabled ? 'Actif' : 'Desactive',
@@ -507,44 +459,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
-            if (_technicalInfoVisible) ...[
-              const SizedBox(height: 16),
-              _SectionCard(
-                title: 'Configuration locale',
-                icon: Icons.memory_outlined,
-                children: [
-                  _InfoRow(
-                    label: 'Ville active',
-                    value: AppConstants.focusCity,
-                  ),
-                  _InfoRow(label: 'Region', value: AppConstants.focusRegion),
-                  _InfoRow(label: 'API', value: AppConstants.baseUrl),
-                  _InfoRow(
-                    label: 'Coordonnees',
-                    value:
-                        '${AppConstants.focusLatitude}, ${AppConstants.focusLongitude}',
-                  ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 16),
-            _SectionCard(
-              title: 'Espace professionnel',
-              icon: Icons.business_center_outlined,
-              children: [
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.storefront_outlined),
-                  title: const Text('Decouvrir l espace professionnel'),
-                  subtitle: const Text(
-                    'Voir le hub dedie aux proprietaires, gestionnaires et etablissements',
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.push('/professional'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
+            const SizedBox(height: SpacingTokens.l),
             _SectionCard(
               title: 'A propos',
               icon: Icons.info_outline,
@@ -560,38 +475,152 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   trailing: const Icon(Icons.chevron_right),
                   onTap: _showPrivacyDialog,
                 ),
-                if (AppConstants.hasOperationalSupportContact)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.support_agent_outlined),
-                    title: const Text('Support'),
-                    subtitle: Text(AppConstants.supportEmail),
-                    trailing: const Icon(Icons.copy_outlined),
-                    onTap: _copySupportEmail,
-                  )
-                else
-                  const ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.support_agent_outlined),
-                    title: Text('Support direct indisponible'),
-                    subtitle: Text(
-                      'Aucun email de support operationnel n est publie dans cette build.',
-                    ),
-                  ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(
-                    Icons.cleaning_services_outlined,
-                    color: AppColors.error,
-                  ),
-                  title: const Text('Reinitialiser les preferences'),
+                  leading: const Icon(Icons.storefront_outlined),
+                  title: const Text('Decouvrir l espace professionnel'),
                   subtitle: const Text(
-                    'Remettre les options locales a leur valeur par defaut',
+                    'Voir le hub dedie aux proprietaires, gestionnaires et etablissements',
                   ),
-                  trailing: const Icon(Icons.restore_outlined),
-                  onTap: _resetPreferences,
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/professional'),
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    _showAdvancedOptions
+                        ? Icons.expand_less_rounded
+                        : Icons.code_rounded,
+                  ),
+                  title: const Text('Avance'),
+                  subtitle: const Text(
+                    'Afficher la connexion API et les details techniques',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    setState(() {
+                      _showAdvancedOptions = !_showAdvancedOptions;
+                    });
+                  },
                 ),
               ],
+            ),
+            if (_showAdvancedOptions) ...[
+              const SizedBox(height: SpacingTokens.l),
+              _SectionCard(
+                title: 'Avance',
+                icon: Icons.code_rounded,
+                children: [
+                  SwitchListTile(
+                    value: _technicalInfoVisible,
+                    onChanged: _toggleTechnicalInfo,
+                    activeThumbColor: AppColors.primary,
+                    title: const Text('Afficher les details techniques'),
+                    subtitle: const Text(
+                      'Montrer la configuration locale et les informations de debug',
+                    ),
+                  ),
+                  _InfoRow(label: 'API active', value: _apiBaseUrl),
+                  _InfoRow(
+                    label: 'API par defaut',
+                    value: AppConstants.defaultBaseUrl,
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.edit_outlined),
+                    title: const Text('Modifier l URL API'),
+                    subtitle: const Text(
+                      'Changer l adresse du backend de cette installation locale',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: _editApiBaseUrl,
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.copy_outlined),
+                    title: const Text('Copier l URL active'),
+                    subtitle: const Text(
+                      'Recopier rapidement l adresse actuellement utilisee',
+                    ),
+                    trailing: const Icon(Icons.copy),
+                    onTap: _copyApiBaseUrl,
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.restore_outlined),
+                    title: const Text('Revenir a l URL par defaut'),
+                    subtitle: const Text(
+                      'Supprimer l override local et reutiliser la configuration standard',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: _resetApiBaseUrl,
+                  ),
+                  if (_technicalInfoVisible) ...[
+                    const SizedBox(height: SpacingTokens.s),
+                    _InfoRow(
+                      label: 'Ville active',
+                      value: AppConstants.focusCity,
+                    ),
+                    _InfoRow(label: 'Region', value: AppConstants.focusRegion),
+                    _InfoRow(label: 'API', value: AppConstants.baseUrl),
+                    _InfoRow(
+                      label: 'Coordonnees',
+                      value:
+                          '${AppConstants.focusLatitude}, ${AppConstants.focusLongitude}',
+                    ),
+                  ],
+                ],
+              ),
+            ],
+            const SizedBox(height: SpacingTokens.l),
+            Container(
+              padding: const EdgeInsets.all(RadiusTokens.form),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceAlt,
+                borderRadius: BorderRadius.circular(RadiusTokens.card),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Support et maintenance',
+                    style: AppTextStyles.heading2.copyWith(fontSize: 20),
+                  ),
+                  const SizedBox(height: SpacingTokens.m),
+                  if (AppConstants.hasOperationalSupportContact)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.support_agent_outlined),
+                      title: const Text('Support'),
+                      subtitle: Text(AppConstants.supportEmail),
+                      trailing: const Icon(Icons.copy_outlined),
+                      onTap: _copySupportEmail,
+                    )
+                  else
+                    const ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.support_agent_outlined),
+                      title: Text('Support direct indisponible'),
+                      subtitle: Text(
+                        'Aucun email de support operationnel n est publie dans cette build.',
+                      ),
+                    ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(
+                      Icons.cleaning_services_outlined,
+                      color: AppColors.error,
+                    ),
+                    title: const Text('Reinitialiser les preferences'),
+                    subtitle: const Text(
+                      'Remettre les options locales a leur valeur par defaut',
+                    ),
+                    trailing: const Icon(Icons.restore_outlined),
+                    onTap: _resetPreferences,
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -646,21 +675,21 @@ class _SectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(RadiusTokens.form),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Icon(icon, color: AppColors.primary),
-                const SizedBox(width: 10),
+                const SizedBox(width: SpacingTokens.m),
                 Text(
                   title,
                   style: AppTextStyles.heading2.copyWith(fontSize: 20),
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: SpacingTokens.m),
             ...children,
           ],
         ),
@@ -677,8 +706,10 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: SpacingTokens.s),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -686,7 +717,9 @@ class _InfoRow extends StatelessWidget {
             width: 110,
             child: Text(
               label,
-              style: AppTextStyles.body.copyWith(color: Colors.grey[600]),
+              style: AppTextStyles.body.copyWith(
+                color: colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
             ),
           ),
           Expanded(
@@ -715,15 +748,18 @@ class _StatusRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: SpacingTokens.s),
       child: Row(
         children: [
           Expanded(child: Text(label, style: AppTextStyles.body)),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(
+              horizontal: SpacingTokens.m,
+              vertical: 6,
+            ),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(999),
+              borderRadius: BorderRadius.circular(RadiusTokens.chip),
             ),
             child: Text(
               state,
