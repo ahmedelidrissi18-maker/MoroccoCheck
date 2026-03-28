@@ -356,9 +356,30 @@ function AdminLoginPage({ onLoggedIn, bootError }) {
             <p className="eyebrow muted">Connexion securisee</p>
             <h2>Entrer dans le dashboard</h2>
             <p className="muted-copy">
-              Utilise un compte <code>ADMIN</code>.
+              Utilise un compte <code>ADMIN</code> (email/mot de passe ou Google).
             </p>
           </div>
+          {googleAuthEnabled ? (
+            <>
+              <button
+                type="button"
+                className="google-sso-button"
+                onClick={handleGoogleSubmit}
+                disabled={isLoading}
+                aria-label="Continuer avec Google"
+              >
+                <span className="google-sso-icon" aria-hidden="true">
+                  G
+                </span>
+                {isLoading ? 'Connexion...' : 'Continuer avec Google'}
+              </button>
+              <div className="divider-row" aria-hidden="true">
+                <span />
+                <p>ou</p>
+                <span />
+              </div>
+            </>
+          ) : null}
           <label className="field">
             <span>Email</span>
             <input
@@ -383,25 +404,6 @@ function AdminLoginPage({ onLoggedIn, bootError }) {
           <button type="submit" className="primary-button" disabled={isLoading}>
             {isLoading ? 'Connexion...' : 'Se connecter'}
           </button>
-          {googleAuthEnabled ? (
-            <>
-              <div className="divider-row" aria-hidden="true">
-                <span />
-                <p>ou</p>
-                <span />
-              </div>
-              <button
-                type="button"
-                className="ghost-button"
-                onClick={handleGoogleSubmit}
-                disabled={isLoading}
-              >
-                {isLoading
-                  ? 'Connexion...'
-                  : 'Continuer avec Google'}
-              </button>
-            </>
-          ) : null}
         </form>
       </section>
     </main>

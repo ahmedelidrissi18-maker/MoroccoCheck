@@ -29,6 +29,12 @@ class AppConstants {
   static const String firebaseIosBundleId = String.fromEnvironment(
     'FIREBASE_IOS_BUNDLE_ID',
   );
+  static const String firebaseWebAppId = String.fromEnvironment(
+    'FIREBASE_WEB_APP_ID',
+  );
+  static const String firebaseWebAuthDomain = String.fromEnvironment(
+    'FIREBASE_WEB_AUTH_DOMAIN',
+  );
   static const String firebaseStorageBucket = String.fromEnvironment(
     'FIREBASE_STORAGE_BUCKET',
   );
@@ -95,18 +101,18 @@ class AppConstants {
 
   static bool get supportsGoogleAuth {
     if (kIsWeb) {
-      return false;
+      return true;
     }
 
     return defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS;
   }
 
-  static bool get hasFirebaseCoreConfig {
-    if (kIsWeb) {
-      return false;
-    }
+  static bool get showGoogleAuthEntryPoint {
+    return isGoogleSignInConfigured;
+  }
 
+  static bool get hasFirebaseCoreConfig {
     final hasSharedFields =
         firebaseApiKey.isNotEmpty &&
         firebaseProjectId.isNotEmpty &&
@@ -114,6 +120,10 @@ class AppConstants {
 
     if (!hasSharedFields) {
       return false;
+    }
+
+    if (kIsWeb) {
+      return firebaseWebAppId.isNotEmpty && firebaseWebAuthDomain.isNotEmpty;
     }
 
     switch (defaultTargetPlatform) {
@@ -131,6 +141,10 @@ class AppConstants {
       return false;
     }
 
+    if (kIsWeb) {
+      return googleWebClientId.isNotEmpty;
+    }
+
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       return googleServerClientId.isNotEmpty && googleIosClientId.isNotEmpty;
     }
@@ -144,6 +158,10 @@ class AppConstants {
 
   static String? get firebaseIosBundleIdOrNull {
     return firebaseIosBundleId.isEmpty ? null : firebaseIosBundleId;
+  }
+
+  static String? get firebaseWebAuthDomainOrNull {
+    return firebaseWebAuthDomain.isEmpty ? null : firebaseWebAuthDomain;
   }
 
   static String? get googleIosClientIdOrNull {

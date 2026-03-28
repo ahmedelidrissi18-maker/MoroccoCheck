@@ -31,8 +31,13 @@ class ProfessionalHubScreen extends StatelessWidget {
                 canManageSites: canManageSites,
               ),
               const SizedBox(height: 16),
+              _OverviewStrip(
+                canManageSites: canManageSites,
+                isAuthenticated: isAuthenticated,
+              ),
+              const SizedBox(height: 16),
               _SectionCard(
-                title: 'Acces rapide',
+                title: 'Actions rapides',
                 icon: Icons.flash_on_outlined,
                 child: Column(
                   children: [
@@ -186,10 +191,10 @@ class _HeroSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusText = canManageSites
-        ? 'Votre compte peut deja gerer des etablissements.'
+        ? 'Votre compte peut deja piloter des etablissements et suivre leur validation.'
         : isAuthenticated
-        ? 'Cet espace est visible dans l application, avec une gestion reservee aux roles autorises.'
-        : 'Cet espace vous permet de voir comment MoroccoCheck accompagne les proprietaires et gestionnaires.';
+        ? 'Votre compte est connecte, mais l acces a la gestion pro reste reserve aux roles autorises.'
+        : 'Cet espace montre comment MoroccoCheck aide les proprietaires a garder une fiche claire et a jour.';
 
     return Container(
       padding: const EdgeInsets.all(22),
@@ -220,12 +225,12 @@ class _HeroSection extends StatelessWidget {
             'Piloter ses etablissements depuis MoroccoCheck',
             style: AppTextStyles.heading1.copyWith(
               color: Colors.white,
-              fontSize: 28,
+              fontSize: 26,
             ),
           ),
           const SizedBox(height: 10),
           Text(
-            'Cet espace centralise la creation de fiches, leur mise a jour, le suivi de moderation et la lecture des signaux utiles pour garder des informations fiables.',
+            'Creation de fiches, suivi de moderation, corrections rapides et lecture des signaux utiles depuis un seul espace.',
             style: AppTextStyles.body.copyWith(
               color: Colors.white.withValues(alpha: 0.92),
             ),
@@ -243,6 +248,149 @@ class _HeroSection extends StatelessWidget {
               style: AppTextStyles.body.copyWith(color: Colors.white),
             ),
           ),
+          const SizedBox(height: 16),
+          const SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _HeroBusinessCard(
+                  title: 'Visibilite',
+                  subtitle: 'soigner la fiche publique',
+                ),
+                SizedBox(width: 10),
+                _HeroBusinessCard(
+                  title: 'Confiance',
+                  subtitle: 'reponse et fraicheur',
+                ),
+                SizedBox(width: 10),
+                _HeroBusinessCard(
+                  title: 'Pilotage',
+                  subtitle: 'corriger et suivre vite',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroBusinessCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const _HeroBusinessCard({
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 156,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: AppTextStyles.body.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: AppTextStyles.caption.copyWith(
+              color: Colors.white.withValues(alpha: 0.88),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OverviewStrip extends StatelessWidget {
+  final bool canManageSites;
+  final bool isAuthenticated;
+
+  const _OverviewStrip({
+    required this.canManageSites,
+    required this.isAuthenticated,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final items = canManageSites
+        ? const [
+            _OverviewItem(
+              icon: Icons.dashboard_customize_outlined,
+              title: 'Suivi pro',
+              subtitle: 'Vos lieux et leur statut',
+            ),
+            _OverviewItem(
+              icon: Icons.rate_review_outlined,
+              title: 'Reactivite',
+              subtitle: 'Repondre et corriger vite',
+            ),
+            _OverviewItem(
+              icon: Icons.verified_user_outlined,
+              title: 'Validation',
+              subtitle: 'Moderation et qualite',
+            ),
+          ]
+        : isAuthenticated
+        ? const [
+            _OverviewItem(
+              icon: Icons.lock_outline,
+              title: 'Acces limite',
+              subtitle: 'Role a faire evoluer',
+            ),
+            _OverviewItem(
+              icon: Icons.person_outline,
+              title: 'Compte actif',
+              subtitle: 'Profil deja connecte',
+            ),
+            _OverviewItem(
+              icon: Icons.support_agent_outlined,
+              title: 'Parcours pro',
+              subtitle: 'Pret a etre active',
+            ),
+          ]
+        : const [
+            _OverviewItem(
+              icon: Icons.login_outlined,
+              title: 'Connexion',
+              subtitle: 'Demarrer le parcours',
+            ),
+            _OverviewItem(
+              icon: Icons.add_business_outlined,
+              title: 'Soumission',
+              subtitle: 'Creer ou revendiquer',
+            ),
+            _OverviewItem(
+              icon: Icons.public_outlined,
+              title: 'Visibilite',
+              subtitle: 'Ameliorer la fiche',
+            ),
+          ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (var index = 0; index < items.length; index++) ...[
+            _OverviewCard(item: items[index]),
+            if (index < items.length - 1) const SizedBox(width: 10),
+          ],
         ],
       ),
     );
@@ -284,6 +432,61 @@ class _SectionCard extends StatelessWidget {
             child,
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _OverviewItem {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _OverviewItem({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+}
+
+class _OverviewCard extends StatelessWidget {
+  final _OverviewItem item;
+
+  const _OverviewCard({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 156,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(item.icon, color: AppColors.primary, size: 20),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            item.title,
+            style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            item.subtitle,
+            style: AppTextStyles.caption.copyWith(color: Colors.grey[700]),
+          ),
+        ],
       ),
     );
   }

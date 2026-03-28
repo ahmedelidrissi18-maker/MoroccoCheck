@@ -17,8 +17,19 @@ class AppFirebase {
 
 class AppFirebaseOptions {
   static FirebaseOptions? get currentPlatform {
-    if (kIsWeb || !AppConstants.hasFirebaseCoreConfig) {
+    if (!AppConstants.hasFirebaseCoreConfig) {
       return null;
+    }
+
+    if (kIsWeb) {
+      return FirebaseOptions(
+        apiKey: AppConstants.firebaseApiKey,
+        appId: AppConstants.firebaseWebAppId,
+        messagingSenderId: AppConstants.firebaseMessagingSenderId,
+        projectId: AppConstants.firebaseProjectId,
+        authDomain: AppConstants.firebaseWebAuthDomainOrNull,
+        storageBucket: AppConstants.firebaseStorageBucketOrNull,
+      );
     }
 
     switch (defaultTargetPlatform) {

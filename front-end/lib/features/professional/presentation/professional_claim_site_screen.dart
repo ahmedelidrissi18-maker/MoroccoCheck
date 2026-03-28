@@ -114,10 +114,15 @@ class _ProfessionalClaimSiteScreenState
           padding: const EdgeInsets.all(16),
           children: [
             Container(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(20),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFF3FBF8), Color(0xFFE8F5EE)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: AppColors.border),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -131,21 +136,64 @@ class _ProfessionalClaimSiteScreenState
                     'Selectionnez une fiche encore non rattachee pour l integrer a votre espace professionnel. Vous pourrez ensuite la suivre, la mettre a jour et repondre aux avis.',
                     style: AppTextStyles.body.copyWith(color: Colors.grey[800]),
                   ),
+                  const SizedBox(height: 14),
+                  const Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _ClaimKpiChip(
+                        icon: Icons.verified_user_outlined,
+                        label: 'rattachement officiel',
+                      ),
+                      _ClaimKpiChip(
+                        icon: Icons.edit_outlined,
+                        label: 'edition rapide',
+                      ),
+                      _ClaimKpiChip(
+                        icon: Icons.reviews_outlined,
+                        label: 'reponse aux avis',
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
             const SizedBox(height: 16),
-            TextField(
-              controller: _searchController,
-              textInputAction: TextInputAction.search,
-              onSubmitted: (_) => _loadSites(),
-              decoration: InputDecoration(
-                hintText: 'Rechercher un site par nom, ville ou adresse',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: IconButton(
-                  tooltip: 'Rechercher',
-                  onPressed: _loadSites,
-                  icon: const Icon(Icons.search),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Recherche',
+                      style: AppTextStyles.body.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Cherchez par nom, ville ou adresse pour retrouver plus vite une fiche a rattacher.',
+                      style: AppTextStyles.caption.copyWith(
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _searchController,
+                      textInputAction: TextInputAction.search,
+                      onSubmitted: (_) => _loadSites(),
+                      decoration: InputDecoration(
+                        hintText: 'Rechercher un site par nom, ville ou adresse',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: IconButton(
+                          tooltip: 'Rechercher',
+                          onPressed: _loadSites,
+                          icon: const Icon(Icons.search),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -280,6 +328,34 @@ class _ProfessionalClaimSiteScreenState
                           const SizedBox(height: 14),
                         ] else
                           const SizedBox(height: 14),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceAlt,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(
+                                Icons.info_outline,
+                                size: 18,
+                                color: AppColors.primary,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Une fois rattachee, la fiche apparaitra dans votre espace pro avec ses statuts, ses avis et ses indicateurs.',
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: Colors.grey[800],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
@@ -310,6 +386,42 @@ class _ProfessionalClaimSiteScreenState
               }),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ClaimKpiChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _ClaimKpiChip({
+    required this.icon,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: AppColors.primary),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: AppTextStyles.caption.copyWith(
+              color: Colors.grey[800],
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }

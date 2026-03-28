@@ -108,6 +108,19 @@ class AuthProvider extends ChangeNotifier {
     return errorMessage;
   }
 
+  /// Après connexion réussie : accueil touriste/contributeur, ou espace pro si rôle PROFESSIONAL.
+  void _navigateAfterAuth(BuildContext? context) {
+    if (context == null || !context.mounted || _user == null) {
+      return;
+    }
+    final role = _user!.role;
+    if (role == 'PROFESSIONAL') {
+      context.go('/professional');
+    } else {
+      context.go('/home');
+    }
+  }
+
   /// Login user with email and password
   /// Optionally redirects to home if successful
   Future<bool> login(
@@ -115,6 +128,7 @@ class AuthProvider extends ChangeNotifier {
     String password, {
     BuildContext? context,
   }) async {
+    final navigatorContext = context;
     try {
       _setLoading(true);
       _setError(null);
@@ -125,9 +139,8 @@ class AuthProvider extends ChangeNotifier {
 
       _setLoading(false);
 
-      // Redirect to home if context is provided and user is logged in
-      if (context != null && _user != null && context.mounted) {
-        context.go('/home');
+      if (navigatorContext != null && navigatorContext.mounted) {
+        _navigateAfterAuth(navigatorContext);
       }
 
       return true;
@@ -147,6 +160,7 @@ class AuthProvider extends ChangeNotifier {
     String password, {
     BuildContext? context,
   }) async {
+    final navigatorContext = context;
     try {
       _setLoading(true);
       _setError(null);
@@ -162,9 +176,8 @@ class AuthProvider extends ChangeNotifier {
 
       _setLoading(false);
 
-      // Redirect to home if context is provided and user is logged in
-      if (context != null && _user != null && context.mounted) {
-        context.go('/home');
+      if (navigatorContext != null && navigatorContext.mounted) {
+        _navigateAfterAuth(navigatorContext);
       }
 
       return true;
@@ -177,6 +190,7 @@ class AuthProvider extends ChangeNotifier {
 
   /// Login user with Google
   Future<bool> loginWithGoogle({BuildContext? context}) async {
+    final navigatorContext = context;
     try {
       _setLoading(true);
       _setError(null);
@@ -187,8 +201,8 @@ class AuthProvider extends ChangeNotifier {
 
       _setLoading(false);
 
-      if (context != null && _user != null && context.mounted) {
-        context.go('/home');
+      if (navigatorContext != null && navigatorContext.mounted) {
+        _navigateAfterAuth(navigatorContext);
       }
 
       return true;

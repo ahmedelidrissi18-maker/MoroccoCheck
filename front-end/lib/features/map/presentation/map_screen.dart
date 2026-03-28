@@ -26,6 +26,7 @@ class _MapScreenState extends State<MapScreen> {
     AppConstants.focusLatitude,
     AppConstants.focusLongitude,
   );
+  static const double _agadirZoom = 11.8;
   final MapController _mapController = MapController();
 
   int? _selectedCategoryId;
@@ -42,10 +43,9 @@ class _MapScreenState extends State<MapScreen> {
       final sitesProvider = context.read<SitesProvider>();
 
       await mapProvider.getUserLocation();
-      final position = mapProvider.currentPosition;
       await sitesProvider.getSites(
-        latitude: position?.latitude,
-        longitude: position?.longitude,
+        city: AppConstants.focusCity,
+        useNearbyMode: false,
       );
     });
   }
@@ -56,8 +56,19 @@ class _MapScreenState extends State<MapScreen> {
     return AppColors.freshnessRed;
   }
 
+  bool _isAgadirSite(Site site) {
+    final city = site.city.trim().toLowerCase();
+    final region = site.region.trim().toLowerCase();
+    return city == AppConstants.focusCity.toLowerCase() ||
+        region == AppConstants.focusRegion.toLowerCase();
+  }
+
   List<Site> _visibleSites(List<Site> sites) {
     return sites.where((site) {
+      if (!_isAgadirSite(site)) {
+        return false;
+      }
+
       final matchesCategory =
           _selectedCategoryId == null || site.categoryId == _selectedCategoryId;
       final matchesSubcategory =
@@ -140,20 +151,13 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
-  Future<void> _centerOnUserLocation() async {
-    final mapProvider = context.read<MapProvider>();
-
-    await mapProvider.getUserLocation();
-    if (!mounted) return;
-
-    final position = mapProvider.currentPosition;
-    if (position != null) {
-      _mapController.move(LatLng(position.latitude, position.longitude), 15);
-      await context.read<SitesProvider>().getSites(
-        latitude: position.latitude,
-        longitude: position.longitude,
-      );
-    }
+  Future<void> _centerOnAgadir() async {
+    _mapController.move(_defaultCenter, _agadirZoom);
+    _clearSelectedSite();
+    await context.read<SitesProvider>().getSites(
+      city: AppConstants.focusCity,
+      useNearbyMode: false,
+    );
   }
 
   void _resetFilters() {
@@ -216,11 +220,10 @@ class _MapScreenState extends State<MapScreen> {
   Widget build(BuildContext context) {
     return Consumer2<MapProvider, SitesProvider>(
       builder: (context, mapProvider, sitesProvider, child) {
-        final currentPosition = mapProvider.currentPosition;
-        final center = currentPosition != null
-            ? LatLng(currentPosition.latitude, currentPosition.longitude)
-            : _defaultCenter;
-        final visibleSites = _visibleSites(sitesProvider.sites);
+        final agadirSites = sitesProvider.sites
+            .where(_isAgadirSite)
+            .toList(growable: false);
+        final visibleSites = _visibleSites(agadirSites);
         final selectedSite = _selectedSite != null &&
                 visibleSites.any((site) => site.id == _selectedSite!.id)
             ? _selectedSite
@@ -233,8 +236,8 @@ class _MapScreenState extends State<MapScreen> {
               FlutterMap(
                 mapController: _mapController,
                 options: MapOptions(
-                  initialCenter: center,
-                  initialZoom: currentPosition != null ? 13 : 11.5,
+                  initialCenter: _defaultCenter,
+                  initialZoom: _agadirZoom,
                   onTap: (_, point) => _clearSelectedSite(),
                 ),
                 children: [
@@ -271,7 +274,11 @@ class _MapScreenState extends State<MapScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildTopPanel(visibleSites.length, sitesProvider.sites.length),
+                      _buildTopPanel(
+                        visibleSites.length,
+                        agadirSites.length,
+                        _activeFilterCount,
+                      ),
                       const SizedBox(height: 12),
                       Row(
                         children: [
@@ -326,7 +333,7 @@ class _MapScreenState extends State<MapScreen> {
                               Expanded(
                                 child: _buildSummaryBar(
                                   visibleSites,
-                                  sitesProvider.sites.length,
+                                  agadirSites.length,
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -346,50 +353,120 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Widget _buildTopPanel(int visibleCount, int totalCount) {
+  Widget _buildTopPanel(int visibleCount, int totalCount, int activeFilters) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 16, 12, 16),
+      padding: const EdgeInsets.fromLTRB(18, 16, 12, 18),
       decoration: BoxDecoration(
         color: AppColors.surface.withValues(alpha: 0.94),
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(30),
         border: Border.all(color: Colors.white.withValues(alpha: 0.7)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
+            blurRadius: 28,
+            offset: const Offset(0, 14),
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Explorer la carte',
-                  style: AppTextStyles.heading2.copyWith(fontSize: 30),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Carte d Agadir',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.primaryDeep,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Explorer la carte',
+                      style: AppTextStyles.heading2.copyWith(fontSize: 28),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      visibleCount == totalCount
+                          ? '$totalCount lieux visibles autour d Agadir'
+                          : '$visibleCount lieux affiches sur $totalCount',
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  visibleCount == totalCount
-                      ? '$totalCount lieux visibles autour d Agadir'
-                      : '$visibleCount lieux affiches sur $totalCount',
-                  style: AppTextStyles.body.copyWith(
-                    color: AppColors.textMuted,
-                  ),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 12),
+              _buildIconShell(
+                icon: Icons.restart_alt,
+                onTap: _resetFilters,
+                tooltip: 'Reinitialiser les filtres',
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          _buildIconShell(
-            icon: Icons.restart_alt,
-            onTap: _resetFilters,
-            tooltip: 'Reinitialiser les filtres',
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildSoftStatBadge(
+                icon: Icons.place_outlined,
+                label: '$visibleCount visibles',
+              ),
+              _buildSoftStatBadge(
+                icon: Icons.layers_outlined,
+                label: '$totalCount referencés',
+              ),
+              _buildSoftStatBadge(
+                icon: Icons.tune,
+                label: activeFilters == 0
+                    ? 'Filtres inactifs'
+                    : '$activeFilters filtre${activeFilters > 1 ? 's' : ''}',
+                highlighted: activeFilters > 0,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSoftStatBadge({
+    required IconData icon,
+    required String label,
+    bool highlighted = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: highlighted
+            ? AppColors.primary.withValues(alpha: 0.12)
+            : AppColors.surfaceAlt,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 15,
+            color: highlighted ? AppColors.primaryDeep : AppColors.textMuted,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: AppTextStyles.caption.copyWith(
+              color: highlighted ? AppColors.primaryDeep : AppColors.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -619,16 +696,16 @@ class _MapScreenState extends State<MapScreen> {
         .length;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       decoration: BoxDecoration(
         color: AppColors.surface.withValues(alpha: 0.95),
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(32),
         border: Border.all(color: Colors.white.withValues(alpha: 0.82)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 28,
-            offset: const Offset(0, 16),
+            blurRadius: 30,
+            offset: const Offset(0, 18),
           ),
         ],
       ),
@@ -637,8 +714,16 @@ class _MapScreenState extends State<MapScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
+            'Resume de la vue',
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.primaryDeep,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
             '${visibleSites.length} site${visibleSites.length > 1 ? 's' : ''}',
-            style: AppTextStyles.heading2.copyWith(fontSize: 28),
+            style: AppTextStyles.heading2.copyWith(fontSize: 30),
           ),
           const SizedBox(height: 4),
           Text(
@@ -648,6 +733,39 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ),
           const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceAlt,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _summaryMetric(
+                    label: 'Frais',
+                    value: '$freshCount',
+                    color: AppColors.freshnessGreen,
+                  ),
+                ),
+                Expanded(
+                  child: _summaryMetric(
+                    label: 'Moyens',
+                    value: '$moderateCount',
+                    color: AppColors.freshnessOrange,
+                  ),
+                ),
+                Expanded(
+                  child: _summaryMetric(
+                    label: 'A verifier',
+                    value: '$staleCount',
+                    color: AppColors.freshnessRed,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -671,6 +789,30 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  Widget _summaryMetric({
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style: AppTextStyles.heading2.copyWith(
+            fontSize: 22,
+            color: color,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSelectedSiteCard(Site site) {
     final markerColor = _markerColorForScore(site.freshnessScore);
 
@@ -679,7 +821,7 @@ class _MapScreenState extends State<MapScreen> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.surface.withValues(alpha: 0.96),
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(28),
         border: Border.all(color: Colors.white.withValues(alpha: 0.82)),
         boxShadow: [
           BoxShadow(
@@ -843,13 +985,17 @@ class _MapScreenState extends State<MapScreen> {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: _centerOnUserLocation,
+        onTap: _centerOnAgadir,
         borderRadius: BorderRadius.circular(24),
         child: Ink(
-          width: 64,
-          height: 64,
+          width: 72,
+          height: 72,
           decoration: BoxDecoration(
-            color: AppColors.primary,
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [AppColors.primaryDeep, AppColors.primary],
+            ),
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
@@ -859,9 +1005,24 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ],
           ),
-          child: const Icon(
-            Icons.my_location,
-            color: Colors.white,
+          child: const Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.explore_rounded,
+                color: Colors.white,
+                size: 22,
+              ),
+              SizedBox(height: 2),
+              Text(
+                'Agadir',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -882,10 +1043,22 @@ class _MapScreenState extends State<MapScreen> {
         child: Ink(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
+            gradient: highlighted
+                ? const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [AppColors.primaryDeep, AppColors.primary],
+                  )
+                : null,
             color: highlighted
-                ? AppColors.primary
+                ? null
                 : AppColors.surface.withValues(alpha: 0.92),
             borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: highlighted
+                  ? Colors.transparent
+                  : Colors.white.withValues(alpha: 0.72),
+            ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.08),
@@ -927,6 +1100,13 @@ class _MapScreenState extends State<MapScreen> {
         color: AppColors.surface.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: Colors.white.withValues(alpha: 0.72)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1024,7 +1204,7 @@ class _MapSiteMarker extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedScale(
       duration: const Duration(milliseconds: 180),
-      scale: isSelected ? 1.08 : 1,
+      scale: isSelected ? 1.1 : 1,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1064,8 +1244,8 @@ class _MapSiteMarker extends StatelessWidget {
                   ),
                 ),
               Container(
-                width: isSelected ? 46 : 40,
-                height: isSelected ? 46 : 40,
+                width: isSelected ? 48 : 40,
+                height: isSelected ? 48 : 40,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/theme/spacing_tokens.dart';
 import '../../../shared/widgets/auth_form_shell.dart';
+import '../../../shared/widgets/google_continue_button.dart';
 import 'auth_provider.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -101,12 +103,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Scaffold(
       body: AuthFormShell(
         title: 'Creer un compte',
-        subtitle: 'Rejoignez MoroccoCheck',
-        footer: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        subtitle: 'Creez votre espace pour suivre vos lieux et activites',
+        footer: Column(
           children: [
             Text(
-              'Deja un compte? ',
+              'Vous avez deja un compte ?',
               style: AppTextStyles.body.copyWith(
                 color: colorScheme.onSurface.withValues(alpha: 0.7),
               ),
@@ -128,6 +129,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceAlt,
+                  borderRadius: BorderRadius.circular(RadiusTokens.form),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.person_add_alt_1_outlined,
+                      color: colorScheme.primary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Votre compte vous permet de conserver vos favoris, avis et check-ins dans un espace personnel.',
+                        style: AppTextStyles.caption.copyWith(
+                          color: colorScheme.onSurface.withValues(alpha: 0.72),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: SpacingTokens.xl),
               AuthFormSection(
                 title: 'Identite',
                 children: [
@@ -295,59 +324,40 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   );
                 },
               ),
-              if (AppConstants.supportsGoogleAuth) ...[
+              if (AppConstants.showGoogleAuthEntryPoint) ...[
                 const SizedBox(height: SpacingTokens.l),
-                Row(
+                AuthFormSection(
+                  title: 'Connexion rapide',
                   children: [
-                    Expanded(child: Divider(color: theme.dividerColor)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: SpacingTokens.m,
-                      ),
-                      child: Text(
-                        'ou',
-                        style: AppTextStyles.caption.copyWith(
-                          color: colorScheme.onSurface.withValues(alpha: 0.7),
-                        ),
-                      ),
-                    ),
-                    Expanded(child: Divider(color: theme.dividerColor)),
-                  ],
-                ),
-                const SizedBox(height: SpacingTokens.l),
-                Consumer<AuthProvider>(
-                  builder: (context, authProvider, child) {
-                    return OutlinedButton(
-                      onPressed: authProvider.isLoading
-                          ? null
-                          : _handleGoogleLogin,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 28,
-                            height: 28,
-                            decoration: BoxDecoration(
-                              color: colorScheme.surface,
-                              borderRadius: BorderRadius.circular(
-                                RadiusTokens.form,
-                              ),
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              'G',
-                              style: AppTextStyles.body.copyWith(
-                                color: colorScheme.primary,
-                                fontWeight: FontWeight.w700,
+                    Row(
+                      children: [
+                        Expanded(child: Divider(color: theme.dividerColor)),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: SpacingTokens.m,
+                          ),
+                          child: Text(
+                            'ou',
+                            style: AppTextStyles.caption.copyWith(
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.7,
                               ),
                             ),
                           ),
-                          const SizedBox(width: SpacingTokens.m),
-                          const Text('Continuer avec Google'),
-                        ],
-                      ),
-                    );
-                  },
+                        ),
+                        Expanded(child: Divider(color: theme.dividerColor)),
+                      ],
+                    ),
+                    const SizedBox(height: SpacingTokens.l),
+                    Consumer<AuthProvider>(
+                      builder: (context, authProvider, child) {
+                        return GoogleContinueButton(
+                          isLoading: authProvider.isLoading,
+                          onPressed: _handleGoogleLogin,
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ],
             ],

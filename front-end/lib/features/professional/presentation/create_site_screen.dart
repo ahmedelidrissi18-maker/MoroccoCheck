@@ -195,6 +195,21 @@ class _CreateSiteScreenState extends State<CreateSiteScreen> {
     return null;
   }
 
+  String _priceRangeLabel(String? value) {
+    switch (value) {
+      case 'BUDGET':
+        return 'Budget';
+      case 'MODERATE':
+        return 'Modere';
+      case 'EXPENSIVE':
+        return 'Premium';
+      case 'LUXURY':
+        return 'Luxe';
+      default:
+        return value?.trim().isNotEmpty == true ? value! : 'Non renseignee';
+    }
+  }
+
   List<String> _parseAmenities() {
     return _amenitiesController.text
         .split(',')
@@ -454,8 +469,11 @@ class _CreateSiteScreenState extends State<CreateSiteScreen> {
                 ),
               ),
               const SizedBox(height: 20),
+              _CreateFlowSummary(isEditMode: _isEditMode),
+              const SizedBox(height: 16),
               _FormSectionCard(
                 title: 'Identite',
+                subtitle: 'Nom, categorie et description visibles sur la fiche.',
                 child: Column(
                   children: [
                     TextFormField(
@@ -496,6 +514,7 @@ class _CreateSiteScreenState extends State<CreateSiteScreen> {
                           ],
                         ),
                       ),
+                    const _InlineFieldLabel('Categorie'),
                     DropdownButtonFormField<int>(
                       initialValue:
                           _categories.any(
@@ -503,12 +522,29 @@ class _CreateSiteScreenState extends State<CreateSiteScreen> {
                           )
                           ? _selectedCategoryId
                           : null,
-                      decoration: const InputDecoration(labelText: 'Categorie'),
+                      isExpanded: true,
+                      isDense: true,
+                      menuMaxHeight: 320,
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      decoration: const InputDecoration(
+                        hintText: 'Choisir une categorie',
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 18,
+                        ),
+                      ),
                       items: _categories
                           .map(
                             (category) => DropdownMenuItem<int>(
                               value: category.id,
-                              child: Text(category.name),
+                              child: Text(
+                                category.name,
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
                             ),
                           )
                           .toList(),
@@ -550,6 +586,8 @@ class _CreateSiteScreenState extends State<CreateSiteScreen> {
               const SizedBox(height: 16),
               _FormSectionCard(
                 title: 'Localisation',
+                subtitle:
+                    'Adresse et coordonnees utilisees pour la carte et le check-in.',
                 child: Column(
                   children: [
                     TextFormField(
@@ -620,6 +658,7 @@ class _CreateSiteScreenState extends State<CreateSiteScreen> {
               const SizedBox(height: 16),
               _FormSectionCard(
                 title: 'Contact',
+                subtitle: 'Coordonnees publiques pour aider le visiteur a vous joindre.',
                 child: Column(
                   children: [
                     TextFormField(
@@ -643,6 +682,7 @@ class _CreateSiteScreenState extends State<CreateSiteScreen> {
               const SizedBox(height: 16),
               _FormSectionCard(
                 title: 'Services',
+                subtitle: 'Elements pratiques qui renforcent la lisibilite de votre fiche.',
                 child: Column(
                   children: [
                     TextFormField(
@@ -654,16 +694,31 @@ class _CreateSiteScreenState extends State<CreateSiteScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
+                    const _InlineFieldLabel('Gamme de prix'),
                     DropdownButtonFormField<String>(
                       initialValue: _selectedPriceRange,
+                      isExpanded: true,
+                      isDense: true,
+                      menuMaxHeight: 260,
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
                       decoration: const InputDecoration(
-                        labelText: 'Gamme de prix',
+                        hintText: 'Choisir une gamme',
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 18,
+                        ),
                       ),
                       items: _priceRanges
                           .map(
                             (range) => DropdownMenuItem<String>(
                               value: range,
-                              child: Text(range),
+                              child: Text(
+                                _priceRangeLabel(range),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           )
                           .toList(),
@@ -802,11 +857,39 @@ class _CreateSiteScreenState extends State<CreateSiteScreen> {
   }
 }
 
+class _InlineFieldLabel extends StatelessWidget {
+  final String text;
+
+  const _InlineFieldLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(left: 4, bottom: 8),
+        child: Text(
+          text,
+          style: AppTextStyles.caption.copyWith(
+            color: Colors.grey[700],
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _FormSectionCard extends StatelessWidget {
   final String title;
+  final String? subtitle;
   final Widget child;
 
-  const _FormSectionCard({required this.title, required this.child});
+  const _FormSectionCard({
+    required this.title,
+    required this.child,
+    this.subtitle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -817,10 +900,169 @@ class _FormSectionCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(title, style: AppTextStyles.heading2.copyWith(fontSize: 20)),
+            if (subtitle != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                subtitle!,
+                style: AppTextStyles.caption.copyWith(color: Colors.grey[700]),
+              ),
+            ],
             const SizedBox(height: 16),
             child,
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _CreateFlowSummary extends StatelessWidget {
+  final bool isEditMode;
+
+  const _CreateFlowSummary({required this.isEditMode});
+
+  @override
+  Widget build(BuildContext context) {
+    final steps = <_CreateSummaryItem>[
+      const _CreateSummaryItem(
+        icon: Icons.badge_outlined,
+        title: '1. Identite',
+        subtitle: 'Nom, categorie, description',
+      ),
+      const _CreateSummaryItem(
+        icon: Icons.place_outlined,
+        title: '2. Localisation',
+        subtitle: 'Carte, ville et coordonnees',
+      ),
+      const _CreateSummaryItem(
+        icon: Icons.call_outlined,
+        title: '3. Contact',
+        subtitle: 'Telephone et email public',
+      ),
+      const _CreateSummaryItem(
+        icon: Icons.fact_check_outlined,
+        title: '4. Services',
+        subtitle: 'Infos utiles pour le visiteur',
+      ),
+    ];
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isEditMode ? 'Plan de mise a jour' : 'Plan de soumission',
+              style: AppTextStyles.heading2.copyWith(fontSize: 20),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Renseignez d abord l essentiel. Les champs optionnels restent regroupes plus bas pour garder un formulaire simple.',
+              style: AppTextStyles.body.copyWith(color: Colors.grey[800]),
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: steps
+                  .map((step) => _CreateSummaryChip(item: step))
+                  .toList(),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceAlt,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.location_city, color: AppColors.primary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'La ville et la region sont deja pre-remplies pour ${AppConstants.focusCity}. Ajustez-les seulement si votre lieu se situe ailleurs.',
+                      style: AppTextStyles.caption.copyWith(
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CreateSummaryItem {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _CreateSummaryItem({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+}
+
+class _CreateSummaryChip extends StatelessWidget {
+  final _CreateSummaryItem item;
+
+  const _CreateSummaryChip({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 150),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(item.icon, size: 16, color: AppColors.primary),
+          ),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.title,
+                  style: AppTextStyles.caption.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  item.subtitle,
+                  style: AppTextStyles.caption.copyWith(
+                    color: Colors.grey[700],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

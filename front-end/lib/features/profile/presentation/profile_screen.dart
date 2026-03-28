@@ -307,36 +307,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
         (user.role ?? 'TOURIST') == 'TOURIST' || contributorRequest != null;
     final canManageSites = user.role == 'PROFESSIONAL' || user.role == 'ADMIN';
 
-    return RefreshIndicator(
+        return RefreshIndicator(
       onRefresh: () => _refreshProfile(authProvider),
       child: ListView(
         children: [
           _buildHeader(user, rank),
-          _sectionTitle('Compte'),
-          Card(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              children: [
-                _linkTile(
-                  icon: Icons.edit_outlined,
-                  title: 'Modifier mon profil',
-                  subtitle: 'Mettre a jour vos informations personnelles',
-                  onTap: () => context.push('/profile/edit', extra: user),
-                ),
-                _linkTile(
-                  icon: Icons.lock_outline,
-                  title: 'Changer mon mot de passe',
-                  subtitle: 'Mettre a jour vos identifiants de connexion',
-                  onTap: () => context.push('/profile/password'),
-                ),
-                _infoTile('Rang', rank),
-                _infoTile('Role', user.role ?? 'TOURIST'),
-                _infoTile('Statut', user.status ?? 'ACTIVE'),
-                if ((user.phoneNumber ?? '').isNotEmpty)
-                  _infoTile('Telephone', user.phoneNumber!),
-                if ((user.nationality ?? '').isNotEmpty)
-                  _infoTile('Nationalite', user.nationality!),
-              ],
+          _buildOverviewStrip(
+            totalPoints: totalPoints,
+            level: level,
+            checkinsCount: _readInt(
+              activity?['checkins_count'],
+              fallback: user.checkinsCount,
+            ),
+            reviewsCount: _readInt(
+              activity?['reviews_count'],
+              fallback: user.reviewsCount,
+            ),
+          ),
+          _sectionTitle('Mon compte'),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _buildPrimaryActions(
+              context: context,
+              user: user,
+              canManageSites: canManageSites,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Card(
+              margin: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  _infoTile('Rang', rank),
+                  _infoTile('Role', user.role ?? 'TOURIST'),
+                  _infoTile('Statut', user.status ?? 'ACTIVE'),
+                  if ((user.phoneNumber ?? '').isNotEmpty)
+                    _infoTile('Telephone', user.phoneNumber!),
+                  if ((user.nationality ?? '').isNotEmpty)
+                    _infoTile('Nationalite', user.nationality!),
+                ],
+              ),
             ),
           ),
           if ((user.bio ?? '').isNotEmpty)
@@ -702,57 +713,75 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildHeader(User user, String rank) {
     return Container(
-      height: 170,
-      padding: const EdgeInsets.all(24),
-      decoration: const BoxDecoration(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.primary, Color(0xFF0F766E)],
+          colors: [
+            AppColors.primaryDeep,
+            AppColors.primary,
+          ],
         ),
+        borderRadius: BorderRadius.circular(28),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AppCircleAvatar(
-            radius: 40,
-            backgroundColor: Colors.white24,
-            imageUrl: user.profilePicture,
-            fallback: const Icon(Icons.person, color: Colors.white, size: 40),
+          Row(
+            children: [
+              AppCircleAvatar(
+                radius: 38,
+                backgroundColor: Colors.white24,
+                imageUrl: user.profilePicture,
+                fallback: const Icon(
+                  Icons.person,
+                  color: Colors.white,
+                  size: 36,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user.name,
+                      style: AppTextStyles.heading2.copyWith(
+                        color: Colors.white,
+                        fontSize: 22,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      user.email,
+                      style: AppTextStyles.caption.copyWith(
+                        color: Colors.white.withValues(alpha: 0.84),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  user.name,
-                  style: AppTextStyles.heading2.copyWith(
-                    color: Colors.white,
-                    fontSize: 20,
-                  ),
-                ),
-                Text(
-                  user.email,
-                  style: AppTextStyles.caption.copyWith(color: Colors.white70),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade300,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    rank,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _headerPill(label: rank, backgroundColor: Colors.white),
+              _headerPill(
+                label: user.role ?? 'TOURIST',
+                backgroundColor: Colors.white.withValues(alpha: 0.18),
+                textColor: Colors.white,
+              ),
+              _headerPill(
+                label: user.status ?? 'ACTIVE',
+                backgroundColor: Colors.white.withValues(alpha: 0.18),
+                textColor: Colors.white,
+              ),
+            ],
           ),
         ],
       ),
@@ -767,11 +796,188 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Expanded(
             child: Text(
               title,
-              style: AppTextStyles.heading2.copyWith(fontSize: 20),
+              style: AppTextStyles.heading2.copyWith(fontSize: 18),
             ),
           ),
           ...?action == null ? null : <Widget>[action],
         ],
+      ),
+    );
+  }
+
+  Widget _buildOverviewStrip({
+    required int totalPoints,
+    required int level,
+    required int checkinsCount,
+    required int reviewsCount,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _overviewMetric(
+                title: 'Points',
+                value: '$totalPoints',
+                icon: Icons.stars_rounded,
+              ),
+              _overviewMetric(
+                title: 'Niveau',
+                value: '$level',
+                icon: Icons.trending_up_rounded,
+              ),
+              _overviewMetric(
+                title: 'Check-ins',
+                value: '$checkinsCount',
+                icon: Icons.location_on_outlined,
+              ),
+              _overviewMetric(
+                title: 'Avis',
+                value: '$reviewsCount',
+                icon: Icons.rate_review_outlined,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _overviewMetric({
+    required String title,
+    required String value,
+    required IconData icon,
+  }) {
+    return SizedBox(
+      width: 150,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceAlt,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 18, color: AppColors.primaryDeep),
+            const SizedBox(height: 10),
+            Text(
+              value,
+              style: AppTextStyles.heading2.copyWith(
+                fontSize: 22,
+                color: AppColors.primaryDeep,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: AppTextStyles.caption.copyWith(color: Colors.grey[700]),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPrimaryActions({
+    required BuildContext context,
+    required User user,
+    required bool canManageSites,
+  }) {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        _actionCard(
+          icon: Icons.edit_outlined,
+          title: 'Modifier mon profil',
+          subtitle: 'Mettre a jour vos informations',
+          onTap: () => context.push('/profile/edit', extra: user),
+        ),
+        _actionCard(
+          icon: Icons.lock_outline,
+          title: 'Securite',
+          subtitle: 'Changer le mot de passe',
+          onTap: () => context.push('/profile/password'),
+        ),
+        _actionCard(
+          icon: Icons.business_center_outlined,
+          title: 'Espace professionnel',
+          subtitle: canManageSites
+              ? 'Acceder a vos etablissements'
+              : 'Decouvrir les outils de gestion',
+          onTap: () => context.push('/professional'),
+        ),
+      ],
+    );
+  }
+
+  Widget _actionCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return SizedBox(
+      width: 170,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: onTap,
+        child: Ink(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceAlt,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: AppColors.primaryDeep, size: 20),
+              ),
+              const SizedBox(height: 12),
+              Text(title, style: AppTextStyles.bodyStrong),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: AppTextStyles.caption.copyWith(color: Colors.grey[700]),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _headerPill({
+    required String label,
+    required Color backgroundColor,
+    Color textColor = AppColors.primaryDeep,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: AppTextStyles.caption.copyWith(
+          color: textColor,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -804,7 +1010,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _infoTile(String label, String value) {
     return ListTile(
-      title: Text(label),
+      title: Text(
+        label,
+        style: AppTextStyles.caption.copyWith(color: Colors.grey[600]),
+      ),
       trailing: Text(
         value,
         style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),

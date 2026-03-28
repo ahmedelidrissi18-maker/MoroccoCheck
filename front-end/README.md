@@ -5,7 +5,7 @@ Application Flutter du projet MoroccoCheck.
 Elle couvre le parcours utilisateur principal:
 
 - authentification
-- authentification Google mobile
+- authentification Google mobile et web
 - consultation des sites
 - detail d un site
 - check-in GPS
@@ -87,6 +87,28 @@ Notes:
 Configuration detaillee du projet:
 
 - [GOOGLE_CLOUD_SETUP_MOBILE.md](/C:/Users/User/App_Touriste/GOOGLE_CLOUD_SETUP_MOBILE.md)
+
+### Google Sign-In Web
+
+Le bouton Google s affiche sur le web quand la configuration Firebase web et
+le client Google web sont fournis:
+
+```bash
+flutter run -d chrome \
+  --dart-define=API_BASE_URL=http://127.0.0.1:5001 \
+  --dart-define=FIREBASE_API_KEY=your-firebase-api-key \
+  --dart-define=FIREBASE_PROJECT_ID=your-firebase-project-id \
+  --dart-define=FIREBASE_MESSAGING_SENDER_ID=your-firebase-messaging-sender-id \
+  --dart-define=FIREBASE_WEB_APP_ID=your-firebase-web-app-id \
+  --dart-define=FIREBASE_WEB_AUTH_DOMAIN=your-project.firebaseapp.com \
+  --dart-define=FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app \
+  --dart-define=GOOGLE_WEB_CLIENT_ID=your-google-web-client-id.apps.googleusercontent.com
+```
+
+Notes:
+
+- le bouton Google reste masque tant que la configuration Firebase web n est pas complete
+- le backend doit continuer a valider les jetons Firebase Google sur `/api/auth/google`
 
 ### Chrome / Web
 

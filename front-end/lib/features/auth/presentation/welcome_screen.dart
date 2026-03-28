@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/theme/spacing_tokens.dart';
+import '../../../shared/widgets/google_continue_button.dart';
+import 'auth_provider.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -14,106 +20,78 @@ class WelcomeScreen extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFFE7FFF4), AppColors.background],
+            colors: [Color(0xFFEAF9F1), AppColors.background],
           ),
         ),
         child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 18, 24, 28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 12,
-                        height: 12,
-                        decoration: const BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
-                        ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const _BrandHeader(),
+                    const SizedBox(height: 24),
+                    const _WelcomeCard(),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => context.go('/register'),
+                        child: const Text('Creer mon compte'),
                       ),
-                      const SizedBox(width: 10),
-                      Text(
-                        'MOROCCOCHECK',
-                        style: AppTextStyles.eyebrow.copyWith(
-                          color: AppColors.primaryDeep,
-                        ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: () => context.go('/login'),
+                        child: const Text('Se connecter'),
+                      ),
+                    ),
+                    if (AppConstants.showGoogleAuthEntryPoint) ...[
+                      const SizedBox(height: SpacingTokens.l),
+                      Row(
+                        children: [
+                          Expanded(child: Divider(color: AppColors.border)),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: SpacingTokens.m,
+                            ),
+                            child: Text(
+                              'ou',
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ),
+                          Expanded(child: Divider(color: AppColors.border)),
+                        ],
+                      ),
+                      const SizedBox(height: SpacingTokens.l),
+                      Consumer<AuthProvider>(
+                        builder: (context, auth, _) {
+                          return GoogleContinueButton(
+                            isLoading: auth.isLoading,
+                            onPressed: () =>
+                                auth.loginWithGoogle(context: context),
+                          );
+                        },
                       ),
                     ],
-                  ),
-                ),
-                const SizedBox(height: 26),
-                const _HeroPanel(),
-                const SizedBox(height: 24),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: const [
-                    _HighlightChip(
-                      icon: Icons.reviews_outlined,
-                      label: 'Avis voyageurs',
-                    ),
-                    _HighlightChip(
-                      icon: Icons.map_outlined,
-                      label: 'Plans par quartier',
-                    ),
-                    _HighlightChip(
-                      icon: Icons.verified_outlined,
-                      label: 'Adresses verifiees',
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.center,
+                      child: TextButton(
+                        onPressed: () => context.go('/home'),
+                        child: const Text('Continuer en visiteur'),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 28),
-                const _FeatureCard(
-                  title: 'Inspirez-vous comme dans un guide de voyage',
-                  description:
-                      'Retrouvez les lieux a voir, comparez les notes, puis passez de la carte aux fiches detaillees en quelques gestes.',
-                  icon: Icons.explore_outlined,
-                ),
-                const SizedBox(height: 16),
-                const _FeatureCard(
-                  title: 'Gardez le rythme d\'une vraie app de visite',
-                  description:
-                      'Recherche immediate, categories lisibles, signaux de fiabilite et fiches faciles a parcourir en mobile comme sur le web.',
-                  icon: Icons.route_outlined,
-                ),
-                const SizedBox(height: 32),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => context.go('/register'),
-                    child: const Text('Creer mon compte'),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: () => context.go('/login'),
-                    child: const Text('Se connecter'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.center,
-                  child: TextButton(
-                    onPressed: () => context.go('/home'),
-                    child: const Text('Continuer en visiteur'),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -122,74 +100,92 @@ class WelcomeScreen extends StatelessWidget {
   }
 }
 
-class _HeroPanel extends StatelessWidget {
-  const _HeroPanel();
+class _BrandHeader extends StatelessWidget {
+  const _BrandHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: AppColors.primaryDeep,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: const Icon(
+            Icons.travel_explore,
+            color: Colors.white,
+            size: 28,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'MoroccoCheck',
+          textAlign: TextAlign.center,
+          style: AppTextStyles.heading1.copyWith(
+            color: AppColors.primaryDeep,
+            fontSize: 34,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Trouvez rapidement des lieux fiables a visiter au Maroc.',
+          textAlign: TextAlign.center,
+          style: AppTextStyles.body.copyWith(color: AppColors.textMuted),
+        ),
+      ],
+    );
+  }
+}
+
+class _WelcomeCard extends StatelessWidget {
+  const _WelcomeCard();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(28),
         border: Border.all(color: AppColors.border),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 28,
-            offset: const Offset(0, 14),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
           ),
         ],
       ),
-      child: Column(
+      child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Explorez le Maroc avec un esprit guide et avis voyageurs',
-                  style: AppTextStyles.heading1.copyWith(
-                    color: AppColors.textPrimary,
-                    fontSize: 38,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Container(
-                width: 74,
-                height: 74,
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceAlt,
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: const Icon(
-                  Icons.travel_explore,
-                  size: 36,
-                  color: AppColors.primaryDeep,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
           Text(
-            'Trouvez des lieux fiables, lisez les notes, planifiez vos sorties et gardez une vue claire sur les spots qui valent vraiment le detour.',
-            style: AppTextStyles.body.copyWith(color: AppColors.textMuted),
+            'Une application simple pour explorer, comparer et garder vos lieux preferes.',
+            style: AppTextStyles.bodyStrong,
           ),
-          const SizedBox(height: 20),
-          const Row(
-            children: [
-              Expanded(
-                child: _HeroStat(label: '1 200+', value: 'lieux a parcourir'),
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: _HeroStat(
-                  label: 'Top notes',
-                  value: 'a voir en priorite',
-                ),
-              ),
-            ],
+          SizedBox(height: 18),
+          _WelcomeFeature(
+            icon: Icons.place_outlined,
+            title: 'Lieux verifies',
+            description:
+                'Accedez aux informations essentielles sans interface surchargee.',
+          ),
+          SizedBox(height: 14),
+          _WelcomeFeature(
+            icon: Icons.map_outlined,
+            title: 'Carte et recherche',
+            description:
+                'Passez rapidement de la carte a la liste selon votre besoin.',
+          ),
+          SizedBox(height: 14),
+          _WelcomeFeature(
+            icon: Icons.favorite_outline,
+            title: 'Espace personnel',
+            description:
+                'Retrouvez vos favoris, avis et check-ins dans un seul endroit.',
           ),
         ],
       ),
@@ -197,119 +193,49 @@ class _HeroPanel extends StatelessWidget {
   }
 }
 
-class _HeroStat extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _HeroStat({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: AppTextStyles.heading2.copyWith(
-              fontSize: 22,
-              color: AppColors.primaryDeep,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HighlightChip extends StatelessWidget {
+class _WelcomeFeature extends StatelessWidget {
   final IconData icon;
-  final String label;
-
-  const _HighlightChip({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18, color: AppColors.primaryDeep),
-          const SizedBox(width: 8),
-          Text(label, style: AppTextStyles.bodyStrong.copyWith(fontSize: 14)),
-        ],
-      ),
-    );
-  }
-}
-
-class _FeatureCard extends StatelessWidget {
   final String title;
   final String description;
-  final IconData icon;
 
-  const _FeatureCard({
+  const _WelcomeFeature({
+    required this.icon,
     required this.title,
     required this.description,
-    required this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceAlt,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(icon, color: AppColors.primaryDeep),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceAlt,
+            borderRadius: BorderRadius.circular(14),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: AppTextStyles.bodyStrong),
-                const SizedBox(height: 6),
-                Text(
-                  description,
-                  style: AppTextStyles.body.copyWith(
-                    color: AppColors.textMuted,
-                    fontSize: 15,
-                  ),
+          child: Icon(icon, color: AppColors.primaryDeep, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: AppTextStyles.bodyStrong),
+              const SizedBox(height: 4),
+              Text(
+                description,
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.textMuted,
+                  fontSize: 14,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

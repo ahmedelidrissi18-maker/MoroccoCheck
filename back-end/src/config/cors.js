@@ -2,6 +2,25 @@ import runtimeConfig from './runtime.js';
 
 const allowedOriginSet = new Set(runtimeConfig.cors.allowedOrigins);
 
+function isAllowedDevelopmentOrigin(origin) {
+  if (!runtimeConfig.isDevelopment) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(origin);
+    const isLocalHost =
+      parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+
+    return (
+      isLocalHost &&
+      (parsed.protocol === 'http:' || parsed.protocol === 'https:')
+    );
+  } catch (_error) {
+    return false;
+  }
+}
+
 function buildCorsError(origin) {
   const error = new Error('Origine non autorisee par la politique CORS');
   error.statusCode = 403;
@@ -27,6 +46,10 @@ export function createCorsOptions() {
         return callback(null, true);
       }
 
+      if (isAllowedDevelopmentOrigin(origin)) {
+        return callback(null, true);
+      }
+
       return callback(buildCorsError(origin));
     },
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -42,4 +65,3 @@ export function describeCorsOrigins() {
 
   return '(aucune origine navigateur configuree)';
 }
-

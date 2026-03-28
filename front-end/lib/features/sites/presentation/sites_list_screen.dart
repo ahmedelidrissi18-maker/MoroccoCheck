@@ -197,7 +197,7 @@ class _SitesListScreenState extends State<SitesListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Explorer')),
+      appBar: AppBar(title: const Text('Explorer les lieux')),
       floatingActionButton: Consumer<SitesProvider>(
         builder: (context, sitesProvider, child) {
           return FloatingActionButton.extended(
@@ -279,56 +279,19 @@ class _SitesListScreenState extends State<SitesListScreen> {
               padding: const EdgeInsets.only(bottom: 108),
               children: [
                 _buildHeroCard(sitesProvider),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
-                          blurRadius: 18,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: TextField(
-                      controller: _searchController,
-                      onChanged: _onSearchChanged,
-                      decoration: InputDecoration(
-                        hintText:
-                            'Rechercher une adresse, une ambiance, une ville...',
-                        prefixIcon: const Icon(
-                          Icons.search,
-                          color: AppColors.primaryDeep,
-                        ),
-                        suffixIcon: _searchController.text.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  _onSearchChanged('');
-                                },
-                              )
-                            : null,
-                      ),
-                    ),
-                  ),
-                ),
+                _buildSearchSection(),
                 _buildAdvancedFiltersSection(sitesProvider),
                 if (showDiscoveryRail)
                   _buildSiteRail(
-                    title: 'Reprendre votre exploration',
+                    title: 'A reprendre',
                     subtitle:
-                        'Suggestions et lieux recemment consultes regroupes dans une seule section.',
+                        'Suggestions et lieux recemment consultes dans une meme section.',
                     sites: discoveryRailSites,
                     sitesProvider: sitesProvider,
                   ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                  child: Text(
-                    'Categories populaires',
-                    style: AppTextStyles.bodyStrong.copyWith(fontSize: 18),
-                  ),
+                _buildSectionHeading(
+                  title: 'Categories',
+                  subtitle: 'Affinez rapidement la liste par famille de lieux.',
                 ),
                 SizedBox(
                   height: 54,
@@ -409,12 +372,9 @@ class _SitesListScreenState extends State<SitesListScreen> {
                       ),
                     ),
                   ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 10),
-                  child: Text(
-                    'Collections premium',
-                    style: AppTextStyles.bodyStrong.copyWith(fontSize: 18),
-                  ),
+                _buildSectionHeading(
+                  title: 'Selections',
+                  subtitle: 'Raccourcis utiles pour retrouver vos preferences.',
                 ),
                 SizedBox(
                   height: 54,
@@ -540,7 +500,7 @@ class _SitesListScreenState extends State<SitesListScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Filtres intelligents',
+                          'Filtres avances',
                           style: AppTextStyles.bodyStrong.copyWith(
                             fontSize: 17,
                           ),
@@ -548,8 +508,8 @@ class _SitesListScreenState extends State<SitesListScreen> {
                         const SizedBox(height: 4),
                         Text(
                           _showAdvancedFilters
-                              ? 'Masquer les options avancees'
-                              : 'Afficher les options avancees pour affiner la liste',
+                              ? 'Masquer les options de tri et de localisation'
+                              : 'Afficher les options de tri, de note et de localisation',
                           style: AppTextStyles.caption.copyWith(
                             color: AppColors.textMuted,
                           ),
@@ -587,13 +547,14 @@ class _SitesListScreenState extends State<SitesListScreen> {
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: AppColors.textPrimary,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(30),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF1F1F1F), Color(0xFF0D3B2A)],
+          colors: [Color(0xFFF8FFFB), Color(0xFFE8F7F0)],
         ),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -603,23 +564,23 @@ class _SitesListScreenState extends State<SitesListScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.secondary,
+                  color: AppColors.primaryDeep,
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: const Icon(
                   Icons.travel_explore,
-                  color: AppColors.textPrimary,
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   sitesProvider.isNearbyModeEnabled
-                      ? 'Les adresses les plus proches de vous a ${sitesProvider.primaryLocationLabel}'
-                      : 'Les adresses qui valent le detour a ${sitesProvider.primaryLocationLabel}',
+                      ? 'Lieux proches de vous a ${sitesProvider.primaryLocationLabel}'
+                      : 'Lieux a consulter a ${sitesProvider.primaryLocationLabel}',
                   style: AppTextStyles.heading2.copyWith(
-                    fontSize: 26,
-                    color: Colors.white,
+                    fontSize: 24,
+                    color: AppColors.textPrimary,
                   ),
                 ),
               ),
@@ -628,10 +589,10 @@ class _SitesListScreenState extends State<SitesListScreen> {
           const SizedBox(height: 12),
           Text(
             sitesProvider.isNearbyModeEnabled
-                ? 'Votre position alimente maintenant le tri serveur pour faire remonter les lieux les plus proches, avec une distance visible dans chaque fiche.'
-                : 'Parcourez les lieux verifies, filtrez comme dans une app de voyage et gardez sous la main les spots les mieux notes.',
+                ? 'Le tri par proximite est actif et les distances sont visibles dans chaque fiche.'
+                : 'Consultez les lieux verifies, filtrez la liste et accedez rapidement aux fiches les plus utiles.',
             style: AppTextStyles.body.copyWith(
-              color: Colors.white.withValues(alpha: 0.78),
+              color: AppColors.textMuted,
             ),
           ),
           const SizedBox(height: 16),
@@ -682,14 +643,14 @@ class _SitesListScreenState extends State<SitesListScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Filtres intelligents',
+              'Filtres avances',
               style: AppTextStyles.bodyStrong.copyWith(fontSize: 17),
             ),
             const SizedBox(height: 6),
             Text(
               sitesProvider.isNearbyModeEnabled
                   ? 'La proximite serveur est active. Vous pouvez continuer a filtrer sans perdre les distances.'
-                  : 'Affinez par ville, note minimum et mode de tri.',
+                  : 'Affinez la liste par ville, note minimum et mode de tri.',
               style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
             ),
             const SizedBox(height: 14),
@@ -991,20 +952,102 @@ class _SitesListScreenState extends State<SitesListScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: AppColors.secondary),
+          Icon(icon, size: 16, color: AppColors.primaryDeep),
           const SizedBox(width: 6),
           Text(
             label,
             style: AppTextStyles.caption.copyWith(
-              color: Colors.white,
+              color: AppColors.textPrimary,
               fontWeight: FontWeight.w700,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchSection() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 18,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Recherche',
+              style: AppTextStyles.bodyStrong.copyWith(fontSize: 16),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Recherchez un lieu, une ambiance ou un quartier.',
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textMuted,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _searchController,
+              onChanged: _onSearchChanged,
+              decoration: InputDecoration(
+                hintText: 'Exemple: plage, cafe, marina...',
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: AppColors.primaryDeep,
+                ),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          _onSearchChanged('');
+                        },
+                      )
+                    : null,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeading({
+    required String title,
+    required String subtitle,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: AppTextStyles.bodyStrong.copyWith(fontSize: 18),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
           ),
         ],
       ),

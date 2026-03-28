@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/theme/spacing_tokens.dart';
 import '../../../shared/widgets/auth_form_shell.dart';
+import '../../../shared/widgets/google_continue_button.dart';
 import 'auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -59,11 +61,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _handleGoogleLogin() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await authProvider.loginWithGoogle(context: context);
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -72,12 +69,11 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       body: AuthFormShell(
         title: 'MoroccoCheck',
-        subtitle: 'Connectez-vous a votre compte',
-        footer: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        subtitle: 'Connectez-vous pour retrouver vos lieux, avis et favoris',
+        footer: Column(
           children: [
             Text(
-              'Pas encore de compte? ',
+              'Pas encore de compte ?',
               style: AppTextStyles.body.copyWith(
                 color: colorScheme.onSurface.withValues(alpha: 0.7),
               ),
@@ -85,7 +81,7 @@ class _LoginScreenState extends State<LoginScreen> {
             TextButton(
               onPressed: () => context.go('/register'),
               child: Text(
-                'S inscrire',
+                'Creer un compte',
                 style: AppTextStyles.body.copyWith(
                   fontWeight: FontWeight.w600,
                   color: colorScheme.primary,
@@ -99,58 +95,91 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  hintText: 'exemple@email.com',
-                  prefixIcon: Icon(Icons.email_outlined),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceAlt,
+                  borderRadius: BorderRadius.circular(RadiusTokens.form),
+                  border: Border.all(color: AppColors.border),
                 ),
-                validator: _validateEmail,
-                autovalidateMode: AutovalidateMode.onUserInteraction,
-              ),
-              const SizedBox(height: SpacingTokens.l),
-              TextFormField(
-                controller: _passwordController,
-                obscureText: _obscurePassword,
-                textInputAction: TextInputAction.done,
-                onFieldSubmitted: (_) => _handleLogin(),
-                decoration: InputDecoration(
-                  labelText: 'Mot de passe',
-                  hintText: 'Entrez votre mot de passe',
-                  prefixIcon: const Icon(Icons.lock_outlined),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.verified_user_outlined,
+                      color: colorScheme.primary,
+                      size: 20,
                     ),
-                    onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
-                    },
-                  ),
-                ),
-                validator: _validatePassword,
-                autovalidateMode: AutovalidateMode.onUserInteraction,
-              ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'La recuperation de mot de passe sera bientot disponible.',
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Utilisez votre adresse email pour acceder a votre espace personnel en toute simplicite.',
+                        style: AppTextStyles.caption.copyWith(
+                          color: colorScheme.onSurface.withValues(alpha: 0.72),
                         ),
                       ),
-                    );
-                  },
-                  child: const Text('Mot de passe oublie ?'),
+                    ),
+                  ],
                 ),
+              ),
+              const SizedBox(height: SpacingTokens.xl),
+              AuthFormSection(
+                title: 'Connexion email',
+                children: [
+                  TextFormField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      hintText: 'exemple@email.com',
+                      prefixIcon: Icon(Icons.email_outlined),
+                    ),
+                    validator: _validateEmail,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                  ),
+                  const SizedBox(height: SpacingTokens.l),
+                  TextFormField(
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
+                    textInputAction: TextInputAction.done,
+                    onFieldSubmitted: (_) => _handleLogin(),
+                    decoration: InputDecoration(
+                      labelText: 'Mot de passe',
+                      hintText: 'Entrez votre mot de passe',
+                      prefixIcon: const Icon(Icons.lock_outlined),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
+                      ),
+                    ),
+                    validator: _validatePassword,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'La recuperation de mot de passe sera bientot disponible.',
+                            ),
+                          ),
+                        );
+                      },
+                      child: const Text('Mot de passe oublie ?'),
+                    ),
+                  ),
+                ],
               ),
               Consumer<AuthProvider>(
                 builder: (context, authProvider, child) {
@@ -214,59 +243,41 @@ class _LoginScreenState extends State<LoginScreen> {
                   );
                 },
               ),
-              if (AppConstants.supportsGoogleAuth) ...[
+              if (AppConstants.showGoogleAuthEntryPoint) ...[
                 const SizedBox(height: SpacingTokens.l),
-                Row(
+                AuthFormSection(
+                  title: 'Connexion rapide',
                   children: [
-                    Expanded(child: Divider(color: theme.dividerColor)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: SpacingTokens.m,
-                      ),
-                      child: Text(
-                        'ou',
-                        style: AppTextStyles.caption.copyWith(
-                          color: colorScheme.onSurface.withValues(alpha: 0.7),
-                        ),
-                      ),
-                    ),
-                    Expanded(child: Divider(color: theme.dividerColor)),
-                  ],
-                ),
-                const SizedBox(height: SpacingTokens.l),
-                Consumer<AuthProvider>(
-                  builder: (context, authProvider, child) {
-                    return OutlinedButton(
-                      onPressed: authProvider.isLoading
-                          ? null
-                          : _handleGoogleLogin,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 28,
-                            height: 28,
-                            decoration: BoxDecoration(
-                              color: colorScheme.surface,
-                              borderRadius: BorderRadius.circular(
-                                RadiusTokens.form,
-                              ),
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              'G',
-                              style: AppTextStyles.body.copyWith(
-                                color: colorScheme.primary,
-                                fontWeight: FontWeight.w700,
+                    Row(
+                      children: [
+                        Expanded(child: Divider(color: theme.dividerColor)),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: SpacingTokens.m,
+                          ),
+                          child: Text(
+                            'ou',
+                            style: AppTextStyles.caption.copyWith(
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.7,
                               ),
                             ),
                           ),
-                          const SizedBox(width: SpacingTokens.m),
-                          const Text('Continuer avec Google'),
-                        ],
-                      ),
-                    );
-                  },
+                        ),
+                        Expanded(child: Divider(color: theme.dividerColor)),
+                      ],
+                    ),
+                    const SizedBox(height: SpacingTokens.l),
+                    Consumer<AuthProvider>(
+                      builder: (context, authProvider, child) {
+                        return GoogleContinueButton(
+                          isLoading: authProvider.isLoading,
+                          onPressed: () =>
+                              authProvider.loginWithGoogle(context: context),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ],
             ],

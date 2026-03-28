@@ -158,10 +158,23 @@ class _ProfessionalSiteDetailScreenState
                 children: [
                   _HeroSection(
                     site: _detail!.site,
+                    analytics: _detail!.analytics,
                     onEdit: () => _openEditScreen(_detail!.site),
                   ),
                   const SizedBox(height: 16),
+                  _BusinessPulseSection(
+                    site: _detail!.site,
+                    analytics: _detail!.analytics,
+                  ),
+                  const SizedBox(height: 16),
                   _ValidationSection(site: _detail!.site),
+                  const SizedBox(height: 16),
+                  _PrioritySection(
+                    site: _detail!.site,
+                    analytics: _detail!.analytics,
+                    onEdit: () => _openEditScreen(_detail!.site),
+                    onRefresh: _loadDetail,
+                  ),
                   const SizedBox(height: 16),
                   _SectionCard(
                     title: 'Visibilite et engagement',
@@ -213,11 +226,136 @@ class _ProfessionalSiteDetailScreenState
   }
 }
 
+class _PrioritySection extends StatelessWidget {
+  final ProfessionalSite site;
+  final ProfessionalSiteAnalytics analytics;
+  final VoidCallback onEdit;
+  final Future<void> Function() onRefresh;
+
+  const _PrioritySection({
+    required this.site,
+    required this.analytics,
+    required this.onEdit,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final priorities = <_PriorityItem>[
+      if (site.status == 'PENDING_REVIEW')
+        const _PriorityItem(
+          icon: Icons.hourglass_top_rounded,
+          title: 'Validation en cours',
+          message:
+              'La fiche attend encore une revue. Evitez les modifications inutiles et surveillez le retour de moderation.',
+          tone: Colors.orange,
+        ),
+      if (site.verificationStatus == 'REJECTED')
+        _PriorityItem(
+          icon: Icons.gpp_bad_outlined,
+          title: 'Correction necessaire',
+          message: site.moderationNotes.trim().isNotEmpty
+              ? site.moderationNotes
+              : 'La validation a ete refusee. Ouvrez la fiche pour corriger les informations demandees.',
+          tone: AppColors.error,
+        ),
+      if (site.phoneNumber.trim().isEmpty && site.email.trim().isEmpty)
+        const _PriorityItem(
+          icon: Icons.contact_phone_outlined,
+          title: 'Contact incomplet',
+          message:
+              'Ajoutez au moins un moyen de contact public pour rendre la fiche plus exploitable.',
+          tone: AppColors.primary,
+        ),
+      if (site.freshnessScore < 70)
+        const _PriorityItem(
+          icon: Icons.update_outlined,
+          title: 'Fraicheur a renforcer',
+          message:
+              'Une mise a jour rapide des informations aidera a garder la fiche fiable.',
+          tone: Colors.orange,
+        ),
+      if (site.totalReviews > 0 && analytics.responseRate < 60)
+        const _PriorityItem(
+          icon: Icons.rate_review_outlined,
+          title: 'Reponses a accelerer',
+          message:
+              'Les avis sont deja presents. Repondre plus souvent renforce la confiance.',
+          tone: AppColors.secondary,
+        ),
+    ];
+
+    final effectivePriorities = priorities.isEmpty
+        ? const <_PriorityItem>[
+            _PriorityItem(
+              icon: Icons.check_circle_outline,
+              title: 'Fiche en bon etat',
+              message:
+                  'Les informations essentielles sont en place. Vous pouvez surtout suivre les avis et la visibilite.',
+              tone: AppColors.secondary,
+            ),
+          ]
+        : priorities;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.bolt_outlined, color: AppColors.primary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Actions conseillees',
+                    style: AppTextStyles.heading2.copyWith(fontSize: 20),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            ...effectivePriorities.map(
+              (item) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _PriorityTile(item: item),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Modifier la fiche'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: onRefresh,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Actualiser'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _HeroSection extends StatelessWidget {
   final ProfessionalSite site;
+  final ProfessionalSiteAnalytics analytics;
   final VoidCallback onEdit;
 
-  const _HeroSection({required this.site, required this.onEdit});
+  const _HeroSection({
+    required this.site,
+    required this.analytics,
+    required this.onEdit,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -264,26 +402,33 @@ class _HeroSection extends StatelessWidget {
               fontSize: 28,
             ),
           ),
-          const SizedBox(height: 16),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _MetricBadge(label: 'Vues', value: '${site.viewsCount}'),
-                const SizedBox(width: 10),
-                _MetricBadge(
-                  label: 'Note',
-                  value: site.rating > 0 ? site.rating.toStringAsFixed(1) : 'N/A',
-                ),
-                const SizedBox(width: 10),
-                _MetricBadge(label: 'Avis', value: '${site.totalReviews}'),
-                const SizedBox(width: 10),
-                _MetricBadge(
-                  label: 'Fraicheur',
-                  value: '${site.freshnessScore}%',
-                ),
-              ],
+          const SizedBox(height: 8),
+          Text(
+            '${site.categoryName} - ${site.city}',
+            style: AppTextStyles.body.copyWith(
+              color: Colors.white.withValues(alpha: 0.92),
             ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _MetricBadge(label: 'Vues', value: '${site.viewsCount}'),
+              _MetricBadge(
+                label: 'Note',
+                value: site.rating > 0 ? site.rating.toStringAsFixed(1) : 'N/A',
+              ),
+              _MetricBadge(label: 'Avis', value: '${site.totalReviews}'),
+              _MetricBadge(
+                label: 'Reponses',
+                value: '${analytics.responseRate}%',
+              ),
+              _MetricBadge(
+                label: 'Fraicheur',
+                value: '${site.freshnessScore}%',
+              ),
+            ],
           ),
           const SizedBox(height: 18),
           SizedBox(
@@ -297,6 +442,213 @@ class _HeroSection extends StatelessWidget {
               onPressed: onEdit,
               icon: const Icon(Icons.edit_outlined),
               label: const Text('Modifier'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BusinessPulseSection extends StatelessWidget {
+  final ProfessionalSite site;
+  final ProfessionalSiteAnalytics analytics;
+
+  const _BusinessPulseSection({
+    required this.site,
+    required this.analytics,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final favoriteRate = site.viewsCount > 0
+        ? (site.favoritesCount / site.viewsCount) * 100
+        : 0.0;
+    final businessCards = <_BusinessPulseCardData>[
+      _BusinessPulseCardData(
+        title: 'Acquisition',
+        value: '${site.viewsCount}',
+        subtitle: 'vues fiche',
+        helper: '${site.favoritesCount} favoris',
+        tone: AppColors.primary,
+      ),
+      _BusinessPulseCardData(
+        title: 'Conversion',
+        value: '${favoriteRate.toStringAsFixed(0)}%',
+        subtitle: 'favoris / vues',
+        helper: '${site.favoritesCount} intentions',
+        tone: Colors.pink.shade700,
+      ),
+      _BusinessPulseCardData(
+        title: 'Confiance',
+        value: site.rating > 0 ? site.rating.toStringAsFixed(1) : 'N/A',
+        subtitle: 'note moyenne',
+        helper: '${analytics.publishedReviews} avis publies',
+        tone: Colors.amber.shade700,
+      ),
+      _BusinessPulseCardData(
+        title: 'Reactivite',
+        value: '${analytics.responseRate}%',
+        subtitle: 'reponses aux avis',
+        helper: '${analytics.ownerRepliesCount} reponses',
+        tone: AppColors.secondary,
+      ),
+    ];
+
+    final headline = analytics.responseRate >= 70 && site.freshnessScore >= 70
+        ? 'La fiche est bien tenue: la reactivite et la fraicheur soutiennent deja la confiance.'
+        : analytics.pendingReviews > 0
+        ? 'Des avis attendent encore un traitement ou une reponse. Une action rapide peut renforcer la perception de la fiche.'
+        : site.freshnessScore < 70
+        ? 'La visibilite existe, mais une mise a jour des informations aidera a mieux convertir et rassurer.'
+        : 'Le lieu gagne a etre pilote comme une vitrine active: avis, favoris et fraicheur doivent avancer ensemble.';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Lecture business',
+              style: AppTextStyles.heading2.copyWith(fontSize: 20),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              headline,
+              style: AppTextStyles.body.copyWith(color: Colors.grey[800]),
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: businessCards
+                  .map((item) => _BusinessPulseCard(item: item))
+                  .toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BusinessPulseCardData {
+  final String title;
+  final String value;
+  final String subtitle;
+  final String helper;
+  final Color tone;
+
+  const _BusinessPulseCardData({
+    required this.title,
+    required this.value,
+    required this.subtitle,
+    required this.helper,
+    required this.tone,
+  });
+}
+
+class _BusinessPulseCard extends StatelessWidget {
+  final _BusinessPulseCardData item;
+
+  const _BusinessPulseCard({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 145),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceAlt,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            item.title,
+            style: AppTextStyles.caption.copyWith(
+              color: Colors.grey[700],
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            item.value,
+            style: AppTextStyles.heading2.copyWith(
+              fontSize: 24,
+              color: item.tone,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            item.subtitle,
+            style: AppTextStyles.caption.copyWith(color: Colors.grey[800]),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            item.helper,
+            style: AppTextStyles.caption.copyWith(color: Colors.grey[600]),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PriorityItem {
+  final IconData icon;
+  final String title;
+  final String message;
+  final Color tone;
+
+  const _PriorityItem({
+    required this.icon,
+    required this.title,
+    required this.message,
+    required this.tone,
+  });
+}
+
+class _PriorityTile extends StatelessWidget {
+  final _PriorityItem item;
+
+  const _PriorityTile({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: item.tone.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(item.icon, color: item.tone),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.title,
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: item.tone,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  item.message,
+                  style: AppTextStyles.caption.copyWith(
+                    color: Colors.grey[900],
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -331,25 +683,25 @@ class _AnalyticsSectionState extends State<_AnalyticsSection> {
           runSpacing: 10,
           children: [
             _AnalyticsTile(
-              title: 'Vues',
+              title: 'Audience',
               value: '${site.viewsCount}',
-              subtitle: 'Visibilite totale de la fiche',
+              subtitle: 'Visibilite totale',
               color: AppColors.primary,
             ),
             _AnalyticsTile(
-              title: 'Favoris',
+              title: 'Intentions',
               value: '${site.favoritesCount}',
-              subtitle: 'Utilisateurs interesses',
+              subtitle: 'Favoris enregistres',
               color: Colors.pink.shade700,
             ),
             _AnalyticsTile(
-              title: 'Check-ins',
+              title: 'Terrain',
               value: '${analytics.totalCheckins}',
               subtitle: '${analytics.recentCheckins30d} sur 30 jours',
               color: AppColors.secondary,
             ),
             _AnalyticsTile(
-              title: 'Reponse avis',
+              title: 'Service client',
               value: '${analytics.responseRate}%',
               subtitle: '${analytics.ownerRepliesCount} reponses publiees',
               color: Colors.orange.shade700,
@@ -415,16 +767,30 @@ class _ValidationSection extends StatelessWidget {
     final publication = publicationStatusInfo(site.status);
     final verification = verificationStatusInfo(site.verificationStatus);
 
-    return Row(
-      children: [
-        Expanded(
-          child: _StatusCard(title: 'Diffusion', info: publication),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _StatusCard(title: 'Validation', info: verification),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 520) {
+          return Column(
+            children: [
+              _StatusCard(title: 'Diffusion', info: publication),
+              const SizedBox(height: 12),
+              _StatusCard(title: 'Validation', info: verification),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(
+              child: _StatusCard(title: 'Diffusion', info: publication),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _StatusCard(title: 'Validation', info: verification),
+            ),
+          ],
+        );
+      },
     );
   }
 }
