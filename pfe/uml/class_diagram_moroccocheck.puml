@@ -1,0 +1,148 @@
+@startuml
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam roundCorner 8
+skinparam shadowing false
+skinparam ArrowColor #2C3E50
+skinparam BorderColor #2C3E50
+skinparam class {
+  BackgroundColor #FFFFFF
+  BorderColor #2C3E50
+}
+
+title MoroccoCheck — Diagramme de classes (domaine métier)
+
+class Category {
+  - id : Long
+  - name : String
+  - nameAr : String
+  - description : String
+  - parentId : Long <<optional>>
+  - displayOrder : Integer
+  - isActive : Boolean
+  __
+  + getSubcategories() : List<Category>
+  + getSites() : List<TouristSite>
+}
+
+class User {
+  - id : Long
+  - email : String
+  - passwordHash : String
+  - firstName : String
+  - lastName : String
+  - role : UserRole {TOURIST, CONTRIBUTOR, PROFESSIONAL, ADMIN}
+  - status : UserStatus
+  - points : Integer
+  - level : Integer
+  - rank : UserRank
+  - profilePicture : String
+  __
+  + register() : void
+  + authenticate() : Session
+  + updateProfile() : void
+  + changePassword() : void
+}
+
+class TouristSite {
+  - id : Long
+  - name : String
+  - nameAr : String
+  - description : String
+  - latitude : Decimal
+  - longitude : Decimal
+  - city : String
+  - region : String
+  - averageRating : Decimal
+  - totalReviews : Integer
+  - status : SiteStatus
+  - verificationStatus : VerificationStatus
+  - ownerId : Long <<optional>>
+  __
+  + publish() : void
+  + archive() : void
+  + recalculateRating() : void
+}
+
+class CheckIn {
+  - id : Long
+  - userLatitude : Decimal
+  - userLongitude : Decimal
+  - accuracyMeters : Decimal
+  - validationStatus : ValidationStatus
+  - distanceToSiteMeters : Decimal
+  - createdAt : DateTime
+  __
+  + validateAgainstSite(radiusM : Double) : Boolean
+}
+
+class Review {
+  - id : Long
+  - overallRating : Decimal
+  - title : String
+  - comment : String
+  - status : ReviewStatus
+  - ownerResponse : String <<optional>>
+  __
+  + moderate() : void
+  + addOwnerResponse(text : String) : void
+}
+
+class Badge {
+  - id : Long
+  - code : String
+  - name : String
+  - description : String
+  - criteriaJson : String
+  __
+  + isEligibleFor(user : User) : Boolean
+}
+
+class UserBadge {
+  - id : Long
+  - earnedAt : DateTime
+  __
+  + award() : void
+}
+
+class ContributorRequest {
+  - id : Long
+  - requestedRole : ContributorRole
+  - status : RequestStatus
+  - motivation : String
+  - adminNotes : String
+  - reviewedAt : DateTime <<optional>>
+  __
+  + submit() : void
+  + approve(adminId : Long) : void
+  + reject(adminId : Long) : void
+}
+
+Category "0..1" <-- "0..*" Category : parent / sous-catégories\n(parent_id)
+
+Category "1" *-- "0..*" TouristSite : classe
+User "1" o-- "0..*" TouristSite : possède / modère\n(owner_id)
+
+User "1" *-- "0..*" CheckIn : effectue
+TouristSite "1" *-- "0..*" CheckIn : concerne
+
+User "1" *-- "0..*" Review : rédige
+TouristSite "1" *-- "0..*" Review : reçoit
+
+User "1" *-- "0..*" ContributorRequest : formule
+
+User "1" *-- "0..*" UserBadge : détient
+Badge "1" *-- "0..*" UserBadge : référencé par
+
+UserBadge ..> User : utilisateur
+UserBadge ..> Badge : badge
+
+note bottom of User
+  Le rôle (TOURIST, CONTRIBUTOR, etc.)
+  est modélisé comme énumération sur **User**,
+  conformément au schéma relationnel unique *users*.
+end note
+
+@enduml

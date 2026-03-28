@@ -1,0 +1,77 @@
+\chapter{Réalisation et implémentation}
+
+\section{Structure du dépôt logiciel}
+
+Le dépôt regroupe trois applications principales :
+
+\begin{verbatim}
+App_Touriste/
+  back-end/     # API Express (Node.js), scripts SQL, tests
+  front-end/    # Application Flutter
+  admin-web/    # Interface React / Vite
+  .github/workflows/  # Intégration continue
+\end{verbatim}
+
+\section{Couche serveur (API)}
+
+Le fichier \texttt{server.js} instancie l'application Express : sécurisation des en-têtes (Helmet), CORS, corps JSON, journalisation (Morgan), exposition des fichiers téléversés sous \texttt{/uploads}, enregistrement des routes \texttt{/api/...} et middleware d'erreur en fin de chaîne.
+
+Les modules métier incluent notamment l'authentification (\texttt{/api/auth}), les sites (\texttt{/api/sites}), les check-ins (\texttt{/api/checkins}), les avis (\texttt{/api/reviews}), les utilisateurs et la gamification, ainsi que l'administration (\texttt{/api/admin}).
+
+\subsection{Exemple : distance GPS (Haversine)}
+
+L'extrait suivant illustre le calcul de distance utilisé pour valider un check-in (fichier \texttt{gps.utils.js}) :
+
+\begin{figure}[H]
+\begin{lstlisting}[language=Java]
+export function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const lat1Rad = (lat1 * Math.PI) / 180;
+  const lon1Rad = (lon1 * Math.PI) / 180;
+  const lat2Rad = (lat2 * Math.PI) / 180;
+  const lon2Rad = (lon2 * Math.PI) / 180;
+  const dLat = lat2Rad - lat1Rad;
+  const dLon = lon2Rad - lon1Rad;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1Rad) * Math.cos(lat2Rad) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+\end{lstlisting}
+\caption{Calcul de distance Haversine (\texttt{back-end/src/utils/gps.utils.js})}
+\label{fig:code-haversine}
+\end{figure}
+
+La fonction \texttt{isWithinRadius} compare ensuite cette distance aux seuils définis dans \texttt{GPS\_VALIDATION} (\texttt{constants.js}).
+
+\section{Application mobile (Flutter)}
+
+Le client Flutter s'organise par \textbf{fonctionnalités} (\texttt{lib/features/}) : authentification, sites, carte, profil, espace professionnel, paramètres. Le cœur technique (\texttt{lib/core/}) regroupe les constantes, le thème, le client HTTP (\texttt{api\_service.dart}), la géolocalisation, les notifications, la synchronisation hors ligne et le routeur (\texttt{go\_router}). L'état est géré notamment avec \textbf{Provider}.
+
+\section{Interface d'administration}
+
+L'administration est une \textbf{SPA} React servie par Vite, réservée aux comptes \textbf{ADMIN}. Elle consomme la même API via des requêtes HTTP JSON (URL de base configurable, ex.\ \texttt{VITE\_API\_BASE\_URL}).
+
+\section{Sécurité}
+
+Les principales mesures déployées incluent :
+\begin{itemize}[leftmargin=*]
+  \item authentification \textbf{JWT} avec contrôle des sessions en base ;
+  \item hachage des mots de passe (\texttt{bcrypt}) ;
+  \item validation des entrées (Joi, express-validator) ;
+  \item limitation du débit configurable (mémoire ou Redis) ;
+  \item séparation des droits selon le rôle utilisateur.
+\end{itemize}
+
+\section{Tests et qualité}
+
+Le backend utilise \textbf{Mocha}, \textbf{Chai} et \textbf{Supertest}. Le dépôt définit un workflow \textbf{GitHub Actions} : installation des dépendances, base MySQL de test, migrations, exécution des tests ; build de l'admin ; analyse et compilation Flutter (APK de staging). L'analyse statique Flutter (\texttt{flutter analyze}) contribue à la qualité du code mobile.
+
+\section{Limites et perspectives techniques}
+
+Parmi les limites actuelles : déploiement production à finaliser, couverture de tests frontend à étendre, documentation API de type OpenAPI à industrialiser. Les perspectives incluent renforcement du monitoring, sauvegardes automatisées et évolutions fonctionnelles décrites dans la documentation projet (recommandations, tableaux de bord admin enrichis, etc.).
+
+\section{Interfaces utilisateur}
+
+Les captures d'écran des écrans principaux (connexion, accueil, liste et détail de site, carte, check-in, profil, espace pro, administration) sont à insérer dans une annexe ou dans ce chapitre une fois les figures exportées (PNG/PDF) sous \texttt{pfe/figures/}.

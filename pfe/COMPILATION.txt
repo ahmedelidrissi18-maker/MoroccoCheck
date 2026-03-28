@@ -1,0 +1,26 @@
+Compilation du rapport (Windows / Linux / macOS)
+===============================================
+
+Prérequis : une distribution LaTeX complète (TeX Live, MiKTeX) avec pdflatex.
+
+1) Ouvrir un terminal dans le dossier : App_Touriste/pfe/
+
+2) Compiler deux fois pour stabiliser la table des matières et les références :
+
+   pdflatex rapport.tex
+   pdflatex rapport.tex
+
+3) Figures UML : générer les PNG depuis les fichiers PlantUML (noms attendus) :
+
+   use_case_global_moroccocheck.png
+   class_diagram_moroccocheck.png
+   sequence_auth_moroccocheck.png
+   sequence_checkin_gps_moroccocheck.png
+   component_architecture_moroccocheck.png
+   activity_gamification_moroccocheck.png
+
+   Les placer dans : pfe/figures/
+
+4) Logo (optionnel) : pfe/figures/logo_est.png
+
+Résultat : pfe/rapport.pdf
