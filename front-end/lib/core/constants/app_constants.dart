@@ -8,21 +8,28 @@ class AppConstants {
     'APP_ENV',
     defaultValue: 'development',
   );
+  static const String _flutterAppFlavor = String.fromEnvironment(
+    'FLUTTER_APP_FLAVOR',
+  );
   static const String _apiBaseUrlOverride = String.fromEnvironment(
     'API_BASE_URL',
   );
   static const String firebaseApiKey = String.fromEnvironment(
     'FIREBASE_API_KEY',
+    defaultValue: 'AIzaSyBVlobhg7j6G0I53FotEHQqc8NxaNicedA',
   );
   static const String firebaseProjectId = String.fromEnvironment(
     'FIREBASE_PROJECT_ID',
+    defaultValue: 'apptouriste',
   );
   static const String firebaseMessagingSenderId = String.fromEnvironment(
     'FIREBASE_MESSAGING_SENDER_ID',
+    defaultValue: '212182583004',
   );
-  static const String firebaseAndroidAppId = String.fromEnvironment(
-    'FIREBASE_ANDROID_APP_ID',
-  );
+  static const String _firebaseAndroidAppIdProduction =
+      '1:212182583004:android:87093e234f8f33c7bf5619';
+  static const String _firebaseAndroidAppIdStaging =
+      '1:212182583004:android:62f6e68db38c5c50bf5619';
   static const String firebaseIosAppId = String.fromEnvironment(
     'FIREBASE_IOS_APP_ID',
   );
@@ -37,9 +44,12 @@ class AppConstants {
   );
   static const String firebaseStorageBucket = String.fromEnvironment(
     'FIREBASE_STORAGE_BUCKET',
+    defaultValue: 'apptouriste.firebasestorage.app',
   );
   static const String googleServerClientId = String.fromEnvironment(
     'GOOGLE_SERVER_CLIENT_ID',
+    defaultValue:
+        '212182583004-0j83u3stotugoodfhf6avhepb8teui1k.apps.googleusercontent.com',
   );
   static const String googleIosClientId = String.fromEnvironment(
     'GOOGLE_IOS_CLIENT_ID',
@@ -56,6 +66,19 @@ class AppConstants {
   static String get appEnvironment => _appEnvironment;
   static double get sentryTracesSampleRate =>
       double.tryParse(_sentryTracesSampleRate) ?? 0;
+
+  static bool get isStagingFlavor => _flutterAppFlavor == 'staging';
+
+  static String get firebaseAndroidAppId {
+    final override = const String.fromEnvironment('FIREBASE_ANDROID_APP_ID');
+    if (override.isNotEmpty) {
+      return override;
+    }
+
+    return isStagingFlavor
+        ? _firebaseAndroidAppIdStaging
+        : _firebaseAndroidAppIdProduction;
+  }
 
   static String normalizeApiBaseUrl(String value) {
     final trimmed = value.trim();

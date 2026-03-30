@@ -57,6 +57,7 @@ android {
     productFlavors {
         create("staging") {
             dimension = "environment"
+            applicationIdSuffix = ".staging"
             versionNameSuffix = "-staging"
             manifestPlaceholders["appLabel"] = "MoroccoCheck Staging"
             manifestPlaceholders["allowCleartextTraffic"] = true
