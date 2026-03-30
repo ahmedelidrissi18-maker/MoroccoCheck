@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/services.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -127,15 +128,34 @@ class NotificationService {
       iOS: DarwinNotificationDetails(),
     );
 
-    await _plugin.zonedSchedule(
-      _dailyReminderId,
-      'MoroccoCheck',
-      'Pensez a partager un check-in, un avis ou une mise a jour terrain aujourd hui.',
-      scheduledAt,
-      details,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.time,
-    );
+    try {
+      await _plugin.zonedSchedule(
+        _dailyReminderId,
+        'MoroccoCheck',
+        'Pensez a partager un check-in, un avis ou une mise a jour terrain aujourd hui.',
+        scheduledAt,
+        details,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
+    } on PlatformException catch (error) {
+      if (error.code != 'exact_alarms_not_permitted') {
+        rethrow;
+      }
+
+      debugPrint(
+        'Exact alarms are not permitted on this device. Falling back to inexact scheduling.',
+      );
+      await _plugin.zonedSchedule(
+        _dailyReminderId,
+        'MoroccoCheck',
+        'Pensez a partager un check-in, un avis ou une mise a jour terrain aujourd hui.',
+        scheduledAt,
+        details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
+    }
   }
 
   Future<void> cancelDailyReminder() async {

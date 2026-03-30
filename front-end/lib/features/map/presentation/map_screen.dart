@@ -32,6 +32,7 @@ class _MapScreenState extends State<MapScreen> {
   int? _selectedCategoryId;
   int? _selectedSubcategoryId;
   String? _selectedLegacySubcategory;
+  String? _selectedSiteFilterId;
   _FreshnessFilter _freshnessFilter = _FreshnessFilter.all;
   Site? _selectedSite;
 
@@ -63,34 +64,71 @@ class _MapScreenState extends State<MapScreen> {
         region == AppConstants.focusRegion.toLowerCase();
   }
 
+  bool _matchesCategoryFilters(Site site) {
+    final matchesCategory =
+        _selectedCategoryId == null || site.categoryId == _selectedCategoryId;
+    final matchesSubcategory =
+        (_selectedSubcategoryId == null &&
+            (_selectedLegacySubcategory == null ||
+                _selectedLegacySubcategory!.isEmpty)) ||
+        (_selectedSubcategoryId != null &&
+            site.subcategoryId == _selectedSubcategoryId) ||
+        (_selectedSubcategoryId == null &&
+            _selectedLegacySubcategory != null &&
+            (site.subcategory ?? '').toLowerCase() ==
+                _selectedLegacySubcategory!.toLowerCase());
+
+    return matchesCategory && matchesSubcategory;
+  }
+
+  bool _matchesFreshnessFilter(Site site) {
+    return switch (_freshnessFilter) {
+      _FreshnessFilter.all => true,
+      _FreshnessFilter.fresh => site.freshnessScore >= 70,
+      _FreshnessFilter.moderate =>
+        site.freshnessScore >= 40 && site.freshnessScore < 70,
+      _FreshnessFilter.stale => site.freshnessScore < 40,
+    };
+  }
+
   List<Site> _visibleSites(List<Site> sites) {
     return sites.where((site) {
       if (!_isAgadirSite(site)) {
         return false;
       }
 
-      final matchesCategory =
-          _selectedCategoryId == null || site.categoryId == _selectedCategoryId;
-      final matchesSubcategory =
-          (_selectedSubcategoryId == null &&
-              (_selectedLegacySubcategory == null ||
-                  _selectedLegacySubcategory!.isEmpty)) ||
-          (_selectedSubcategoryId != null &&
-              site.subcategoryId == _selectedSubcategoryId) ||
-          (_selectedSubcategoryId == null &&
-              _selectedLegacySubcategory != null &&
-              (site.subcategory ?? '').toLowerCase() ==
-                  _selectedLegacySubcategory!.toLowerCase());
+      final matchesSiteFilter =
+          _selectedSiteFilterId == null || site.id == _selectedSiteFilterId;
 
-      final matchesFreshness = switch (_freshnessFilter) {
-        _FreshnessFilter.all => true,
-        _FreshnessFilter.fresh => site.freshnessScore >= 70,
-        _FreshnessFilter.moderate =>
-          site.freshnessScore >= 40 && site.freshnessScore < 70,
-        _FreshnessFilter.stale => site.freshnessScore < 40,
-      };
+      return _matchesCategoryFilters(site) &&
+          _matchesFreshnessFilter(site) &&
+          matchesSiteFilter;
+    }).toList();
+  }
 
-      return matchesCategory && matchesFreshness && matchesSubcategory;
+  List<Site> _sitesForFilterPicker(List<Site> sites, String query) {
+    final normalizedQuery = query.trim().toLowerCase();
+
+    return sites.where((site) {
+      if (!_isAgadirSite(site) ||
+          !_matchesCategoryFilters(site) ||
+          !_matchesFreshnessFilter(site)) {
+        return false;
+      }
+
+      if (normalizedQuery.isEmpty) {
+        return true;
+      }
+
+      final haystack = [
+        site.name,
+        site.category,
+        site.subcategory ?? '',
+        site.city,
+        site.address,
+      ].join(' ').toLowerCase();
+
+      return haystack.contains(normalizedQuery);
     }).toList();
   }
 
@@ -133,10 +171,6 @@ class _MapScreenState extends State<MapScreen> {
     return markers;
   }
 
-  Future<void> _openSiteDetails(Site site) async {
-    await context.push('/sites/${site.id}');
-  }
-
   void _clearSelectedSite() {
     if (_selectedSite == null) return;
     setState(() {
@@ -144,28 +178,27 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
-  void _centerOnSite(Site site) {
-    _mapController.move(LatLng(site.latitude, site.longitude), 15.2);
-    setState(() {
-      _selectedSite = site;
-    });
-  }
-
-  Future<void> _centerOnAgadir() async {
-    _mapController.move(_defaultCenter, _agadirZoom);
-    _clearSelectedSite();
-    await context.read<SitesProvider>().getSites(
-      city: AppConstants.focusCity,
-      useNearbyMode: false,
-    );
-  }
-
   void _resetFilters() {
     setState(() {
       _selectedCategoryId = null;
       _selectedSubcategoryId = null;
       _selectedLegacySubcategory = null;
+      _selectedSiteFilterId = null;
       _freshnessFilter = _FreshnessFilter.all;
+      _selectedSite = null;
+    });
+  }
+
+  void _focusOnSite(Site site, {double zoom = 15.2}) {
+    _mapController.move(LatLng(site.latitude, site.longitude), zoom);
+    setState(() {
+      _selectedSite = site;
+    });
+  }
+
+  void _focusOnAgadir() {
+    _mapController.move(_defaultCenter, _agadirZoom);
+    setState(() {
       _selectedSite = null;
     });
   }
@@ -178,12 +211,14 @@ class _MapScreenState extends State<MapScreen> {
             _selectedLegacySubcategory!.isNotEmpty)) {
       count++;
     }
+    if (_selectedSiteFilterId != null) count++;
     if (_freshnessFilter != _FreshnessFilter.all) count++;
     return count;
   }
 
   Future<void> _openFiltersSheet(SitesProvider sitesProvider) async {
     final colorScheme = Theme.of(context).colorScheme;
+    var siteSearchQuery = '';
 
     await showModalBottomSheet<void>(
       context: context,
@@ -200,12 +235,14 @@ class _MapScreenState extends State<MapScreen> {
 
             return SafeArea(
               child: FractionallySizedBox(
-                heightFactor: 0.72,
+                heightFactor: 0.88,
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                   child: _buildFilterSheetContent(
                     sitesProvider,
                     refreshFilters,
+                    siteSearchQuery,
+                    (value) => setSheetState(() => siteSearchQuery = value),
                   ),
                 ),
               ),
@@ -224,7 +261,8 @@ class _MapScreenState extends State<MapScreen> {
             .where(_isAgadirSite)
             .toList(growable: false);
         final visibleSites = _visibleSites(agadirSites);
-        final selectedSite = _selectedSite != null &&
+        final selectedVisibleSite =
+            _selectedSite != null &&
                 visibleSites.any((site) => site.id == _selectedSite!.id)
             ? _selectedSite
             : null;
@@ -243,109 +281,56 @@ class _MapScreenState extends State<MapScreen> {
                 children: [
                   TileLayer(
                     urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.example.mor_che_frontend',
+                        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    fallbackUrl:
+                        'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                    subdomains: const ['a', 'b', 'c'],
+                    userAgentPackageName: 'com.moroccocheck.app',
+                    tileProvider: NetworkTileProvider(),
+                    errorTileCallback: (tile, error, stackTrace) {
+                      debugPrint(
+                        'Map tile error (${tile.coordinates}): $error',
+                      );
+                    },
                   ),
                   MarkerLayer(
                     markers: _buildMarkers(mapProvider, visibleSites),
                   ),
                 ],
               ),
-              IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        AppColors.primaryDeep.withValues(alpha: 0.18),
-                        Colors.transparent,
-                        Colors.transparent,
-                        Colors.black.withValues(alpha: 0.12),
-                      ],
-                      stops: const [0, 0.18, 0.7, 1],
-                    ),
-                  ),
-                ),
-              ),
               SafeArea(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                  child: Row(
                     children: [
-                      _buildTopPanel(
-                        visibleSites.length,
-                        agadirSites.length,
-                        _activeFilterCount,
+                      _buildFloatingActionChip(
+                        icon: Icons.map_rounded,
+                        label: 'Agadir',
+                        onTap: _focusOnAgadir,
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          _buildFloatingActionChip(
-                            icon: Icons.tune,
-                            label: _activeFilterCount > 0
-                                ? 'Filtres ($_activeFilterCount)'
-                                : 'Filtres',
-                            highlighted: true,
-                            onTap: () => _openFiltersSheet(sitesProvider),
-                          ),
-                          const SizedBox(width: 10),
-                          if (_activeFilterCount > 0)
-                            Expanded(
-                              child: _buildInfoChip(
-                                icon: Icons.filter_alt_outlined,
-                                label: _activeFilterCount == 1
-                                    ? '1 filtre actif'
-                                    : '$_activeFilterCount filtres actifs',
-                              ),
-                            )
-                          else
-                            Expanded(
-                              child: _buildInfoChip(
-                                icon: Icons.place_outlined,
-                                label: visibleSites.isEmpty
-                                    ? 'Aucun site visible'
-                                    : '${visibleSites.length} lieux visibles',
-                              ),
-                            ),
-                        ],
-                      ),
-                      if (mapProvider.isLoading || sitesProvider.isLoading) ...[
-                        const SizedBox(height: 12),
-                        _buildLoadingPill(),
-                      ],
-                      if (mapProvider.error != null || sitesProvider.error != null) ...[
-                        const SizedBox(height: 12),
-                        _buildErrorBanner(mapProvider, sitesProvider),
-                      ],
                       const Spacer(),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (selectedSite != null) ...[
-                            _buildSelectedSiteCard(selectedSite),
-                            const SizedBox(height: 12),
-                          ],
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Expanded(
-                                child: _buildSummaryBar(
-                                  visibleSites,
-                                  agadirSites.length,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              _buildLocationButton(),
-                            ],
-                          ),
-                        ],
+                      _buildFloatingActionChip(
+                        icon: Icons.tune,
+                        label: _activeFilterCount > 0
+                            ? 'Filtres ($_activeFilterCount)'
+                            : 'Filtres',
+                        highlighted: true,
+                        onTap: () => _openFiltersSheet(sitesProvider),
                       ),
                     ],
                   ),
                 ),
               ),
+              if (selectedVisibleSite != null)
+                SafeArea(
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                      child: _buildSelectedSiteCard(selectedVisibleSite),
+                    ),
+                  ),
+                ),
             ],
           ),
         );
@@ -353,133 +338,20 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Widget _buildTopPanel(int visibleCount, int totalCount, int activeFilters) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 16, 12, 18),
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.94),
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.7)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 28,
-            offset: const Offset(0, 14),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Carte d Agadir',
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.primaryDeep,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Explorer la carte',
-                      style: AppTextStyles.heading2.copyWith(fontSize: 28),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      visibleCount == totalCount
-                          ? '$totalCount lieux visibles autour d Agadir'
-                          : '$visibleCount lieux affiches sur $totalCount',
-                      style: AppTextStyles.body.copyWith(
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              _buildIconShell(
-                icon: Icons.restart_alt,
-                onTap: _resetFilters,
-                tooltip: 'Reinitialiser les filtres',
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _buildSoftStatBadge(
-                icon: Icons.place_outlined,
-                label: '$visibleCount visibles',
-              ),
-              _buildSoftStatBadge(
-                icon: Icons.layers_outlined,
-                label: '$totalCount referencés',
-              ),
-              _buildSoftStatBadge(
-                icon: Icons.tune,
-                label: activeFilters == 0
-                    ? 'Filtres inactifs'
-                    : '$activeFilters filtre${activeFilters > 1 ? 's' : ''}',
-                highlighted: activeFilters > 0,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSoftStatBadge({
-    required IconData icon,
-    required String label,
-    bool highlighted = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: highlighted
-            ? AppColors.primary.withValues(alpha: 0.12)
-            : AppColors.surfaceAlt,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 15,
-            color: highlighted ? AppColors.primaryDeep : AppColors.textMuted,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: AppTextStyles.caption.copyWith(
-              color: highlighted ? AppColors.primaryDeep : AppColors.textPrimary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildFilterSheetContent(
     SitesProvider sitesProvider,
     void Function(VoidCallback update) refreshFilters,
+    String siteSearchQuery,
+    ValueChanged<String> onSiteSearchChanged,
   ) {
+    final agadirSites = sitesProvider.sites
+        .where(_isAgadirSite)
+        .toList(growable: false);
     final subcategoryOptions = sitesProvider.getSubcategoryOptionsFor(
       _selectedCategoryId,
     );
+    final filterableSites = _sitesForFilterPicker(agadirSites, siteSearchQuery);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -498,6 +370,94 @@ class _MapScreenState extends State<MapScreen> {
           ],
         ),
         const SizedBox(height: 8),
+        Text(
+          'Sites',
+          style: AppTextStyles.caption.copyWith(
+            color: AppColors.textMuted,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          onChanged: onSiteSearchChanged,
+          decoration: InputDecoration(
+            hintText: 'Rechercher un site...',
+            prefixIcon: const Icon(Icons.search_rounded),
+            filled: true,
+            fillColor: AppColors.background,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 14,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(18),
+              borderSide: const BorderSide(color: AppColors.border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(18),
+              borderSide: const BorderSide(color: AppColors.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(18),
+              borderSide: const BorderSide(color: AppColors.primary),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        _buildCategoryChip('Tous les sites', _selectedSiteFilterId == null, () {
+          refreshFilters(() {
+            _selectedSiteFilterId = null;
+          });
+        }),
+        const SizedBox(height: 10),
+        if (filterableSites.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Text(
+              siteSearchQuery.trim().isEmpty
+                  ? 'Aucun site ne correspond aux filtres actuels.'
+                  : 'Aucun site trouvé pour cette recherche.',
+              style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
+            ),
+          )
+        else
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 220),
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: filterableSites.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final site = filterableSites[index];
+                final isSelected = _selectedSiteFilterId == site.id;
+                return _buildSiteFilterTile(
+                  site: site,
+                  isSelected: isSelected,
+                  onTap: () {
+                    refreshFilters(() {
+                      _selectedSiteFilterId = isSelected ? null : site.id;
+                      _selectedSite = site;
+                    });
+                    _focusOnSite(site);
+                  },
+                );
+              },
+            ),
+          ),
+        const SizedBox(height: 18),
+        Text(
+          'Catégories',
+          style: AppTextStyles.caption.copyWith(
+            color: AppColors.textMuted,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -507,6 +467,7 @@ class _MapScreenState extends State<MapScreen> {
                 _selectedCategoryId = null;
                 _selectedSubcategoryId = null;
                 _selectedLegacySubcategory = null;
+                _selectedSiteFilterId = null;
               });
             }),
             ...sitesProvider.topLevelCategories.map(
@@ -518,6 +479,14 @@ class _MapScreenState extends State<MapScreen> {
                     _selectedCategoryId = category.id;
                     _selectedSubcategoryId = null;
                     _selectedLegacySubcategory = null;
+                    if (_selectedSiteFilterId != null &&
+                        !agadirSites.any(
+                          (site) =>
+                              site.id == _selectedSiteFilterId &&
+                              site.categoryId == category.id,
+                        )) {
+                      _selectedSiteFilterId = null;
+                    }
                   });
                 },
               ),
@@ -624,6 +593,86 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ],
         ),
+        const SizedBox(height: 18),
+        Text(
+          'Sites',
+          style: AppTextStyles.caption.copyWith(
+            color: AppColors.textMuted,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          onChanged: onSiteSearchChanged,
+          decoration: InputDecoration(
+            hintText: 'Rechercher un site...',
+            prefixIcon: const Icon(Icons.search_rounded),
+            filled: true,
+            fillColor: AppColors.background,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 14,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(18),
+              borderSide: const BorderSide(color: AppColors.border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(18),
+              borderSide: const BorderSide(color: AppColors.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(18),
+              borderSide: const BorderSide(color: AppColors.primary),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        _buildCategoryChip('Tous les sites', _selectedSiteFilterId == null, () {
+          refreshFilters(() {
+            _selectedSiteFilterId = null;
+          });
+        }),
+        const SizedBox(height: 10),
+        if (filterableSites.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Text(
+              siteSearchQuery.trim().isEmpty
+                  ? 'Aucun site ne correspond aux filtres actuels.'
+                  : 'Aucun site trouvé pour cette recherche.',
+              style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
+            ),
+          )
+        else
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 280),
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: filterableSites.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final site = filterableSites[index];
+                final isSelected = _selectedSiteFilterId == site.id;
+                return _buildSiteFilterTile(
+                  site: site,
+                  isSelected: isSelected,
+                  onTap: () {
+                    refreshFilters(() {
+                      _selectedSiteFilterId = isSelected ? null : site.id;
+                      _selectedSite = site;
+                    });
+                    _focusOnSite(site);
+                  },
+                );
+              },
+            ),
+          ),
       ],
     );
   }
@@ -679,351 +728,6 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSummaryBar(List<Site> visibleSites, int totalSites) {
-    final freshCount = visibleSites
-        .where((site) => site.freshnessScore >= 70)
-        .length;
-    final moderateCount = visibleSites
-        .where((site) => site.freshnessScore >= 40 && site.freshnessScore < 70)
-        .length;
-    final staleCount = visibleSites
-        .where((site) => site.freshnessScore < 40)
-        .length;
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.95),
-        borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.82)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 30,
-            offset: const Offset(0, 18),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'Resume de la vue',
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.primaryDeep,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${visibleSites.length} site${visibleSites.length > 1 ? 's' : ''}',
-            style: AppTextStyles.heading2.copyWith(fontSize: 30),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Affiches sur $totalSites dans cette vue',
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.textMuted,
-            ),
-          ),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceAlt,
-              borderRadius: BorderRadius.circular(22),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _summaryMetric(
-                    label: 'Frais',
-                    value: '$freshCount',
-                    color: AppColors.freshnessGreen,
-                  ),
-                ),
-                Expanded(
-                  child: _summaryMetric(
-                    label: 'Moyens',
-                    value: '$moderateCount',
-                    color: AppColors.freshnessOrange,
-                  ),
-                ),
-                Expanded(
-                  child: _summaryMetric(
-                    label: 'A verifier',
-                    value: '$staleCount',
-                    color: AppColors.freshnessRed,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _legendPill(
-                label: '$freshCount frais',
-                color: AppColors.freshnessGreen,
-              ),
-              _legendPill(
-                label: '$moderateCount moyens',
-                color: AppColors.freshnessOrange,
-              ),
-              _legendPill(
-                label: '$staleCount a verifier',
-                color: AppColors.freshnessRed,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _summaryMetric({
-    required String label,
-    required String value,
-    required Color color,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          style: AppTextStyles.heading2.copyWith(
-            fontSize: 22,
-            color: color,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSelectedSiteCard(Site site) {
-    final markerColor = _markerColorForScore(site.freshnessScore);
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.96),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.82)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 28,
-            offset: const Offset(0, 18),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: SizedBox(
-              width: 92,
-              height: 110,
-              child: site.imageUrl.isNotEmpty
-                  ? AppNetworkImage(
-                      imageUrl: site.imageUrl,
-                      fit: BoxFit.cover,
-                      fallback: _SelectedSitePlaceholder(color: markerColor),
-                    )
-                  : _SelectedSitePlaceholder(color: markerColor),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _legendPill(
-                      label: site.category,
-                      color: AppColors.primary,
-                    ),
-                    _legendPill(
-                      label: '${site.freshnessScore}% fiable',
-                      color: markerColor,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  site.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.bodyStrong.copyWith(fontSize: 18),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  [
-                    if (site.city.isNotEmpty) site.city,
-                    if (site.subcategory?.isNotEmpty == true) site.subcategory!,
-                  ].join(' - '),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textMuted,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () => _openSiteDetails(site),
-                        icon: const Icon(Icons.place_outlined, size: 18),
-                        label: const Text('Voir la fiche'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildIconShell(
-                      icon: Icons.my_location_outlined,
-                      tooltip: 'Centrer sur ce lieu',
-                      onTap: () => _centerOnSite(site),
-                    ),
-                    const SizedBox(width: 6),
-                    _buildIconShell(
-                      icon: Icons.close,
-                      tooltip: 'Fermer',
-                      onTap: _clearSelectedSite,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLoadingPill() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          SizedBox(width: 10),
-          Text('Mise a jour de la carte...', style: AppTextStyles.caption),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildErrorBanner(MapProvider mapProvider, SitesProvider sitesProvider) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF8A2E12).withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.warning_amber_rounded,
-            color: Colors.white,
-            size: 18,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              mapProvider.error ??
-                  sitesProvider.error ??
-                  'Une erreur est survenue.',
-              style: AppTextStyles.caption.copyWith(
-                color: Colors.white,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          _buildIconShell(
-            icon: Icons.close,
-            iconColor: Colors.white,
-            backgroundColor: Colors.white.withValues(alpha: 0.14),
-            onTap: () {
-              mapProvider.clearError();
-              sitesProvider.clearError();
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLocationButton() {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: _centerOnAgadir,
-        borderRadius: BorderRadius.circular(24),
-        child: Ink(
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [AppColors.primaryDeep, AppColors.primary],
-            ),
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.35),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: const Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.explore_rounded,
-                color: Colors.white,
-                size: 22,
-              ),
-              SizedBox(height: 2),
-              Text(
-                'Agadir',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -1090,69 +794,165 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Widget _buildInfoChip({
-    required IconData icon,
-    required String label,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.72)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: AppColors.textMuted),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildSelectedSiteCard(Site site) {
+    final imageUrl = site.previewPhotos.isNotEmpty
+        ? site.previewPhotos.first
+        : site.imageUrl;
+    final subtitle = [
+      if (site.category.isNotEmpty) site.category,
+      if (site.subcategory?.isNotEmpty ?? false) site.subcategory!,
+    ].join(' • ');
+    final locationLine = [
+      if (site.address.isNotEmpty) site.address,
+      if (site.city.isNotEmpty) site.city,
+    ].join(', ');
 
-  Widget _buildIconShell({
-    required IconData icon,
-    required VoidCallback onTap,
-    String? tooltip,
-    Color? iconColor,
-    Color? backgroundColor,
-  }) {
-    return Tooltip(
-      message: tooltip ?? '',
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
       child: Material(
+        key: ValueKey(site.id),
         color: Colors.transparent,
         child: InkWell(
-          onTap: onTap,
-          customBorder: const CircleBorder(),
+          borderRadius: BorderRadius.circular(24),
+          onTap: () => context.push('/sites/${site.id}'),
           child: Ink(
-            width: 44,
-            height: 44,
             decoration: BoxDecoration(
-              color: backgroundColor ?? AppColors.surfaceAlt,
-              shape: BoxShape.circle,
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: AppColors.border),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 24,
+                  offset: const Offset(0, 12),
+                ),
+              ],
             ),
-            child: Icon(
-              icon,
-              size: 20,
-              color: iconColor ?? AppColors.primaryDeep,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: SizedBox(
+                      width: 88,
+                      height: 88,
+                      child: imageUrl.isNotEmpty
+                          ? AppNetworkImage(
+                              imageUrl: imageUrl,
+                              fallback: _SelectedSiteImagePlaceholder(
+                                color: _markerColorForScore(
+                                  site.freshnessScore,
+                                ),
+                              ),
+                            )
+                          : _SelectedSiteImagePlaceholder(
+                              color: _markerColorForScore(site.freshnessScore),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                site.name,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTextStyles.bodyStrong.copyWith(
+                                  fontSize: 17,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            InkWell(
+                              borderRadius: BorderRadius.circular(999),
+                              onTap: _clearSelectedSite,
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: AppColors.background,
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: const Icon(
+                                  Icons.close_rounded,
+                                  size: 16,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (subtitle.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.primaryDeep,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _buildSiteInfoPill(
+                              Icons.star_rounded,
+                              site.rating.toStringAsFixed(1),
+                              AppColors.accentGold,
+                            ),
+                            _buildSiteInfoPill(
+                              Icons.verified_rounded,
+                              '${site.freshnessScore}%',
+                              _markerColorForScore(site.freshnessScore),
+                            ),
+                            if (site.hasDistance)
+                              _buildSiteInfoPill(
+                                Icons.near_me_rounded,
+                                site.formattedDistance,
+                                AppColors.primary,
+                              ),
+                          ],
+                        ),
+                        if (locationLine.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.place_outlined,
+                                size: 14,
+                                color: AppColors.textMuted,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  locationLine,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: AppColors.textMuted,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1160,7 +960,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Widget _legendPill({required String label, required Color color}) {
+  Widget _buildSiteInfoPill(IconData icon, String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -1170,11 +970,7 @@ class _MapScreenState extends State<MapScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
+          Icon(icon, size: 14, color: color),
           const SizedBox(width: 6),
           Text(
             label,
@@ -1184,6 +980,91 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSiteFilterTile({
+    required Site site,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final imageUrl = site.previewPhotos.isNotEmpty
+        ? site.previewPhotos.first
+        : site.imageUrl;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? AppColors.primary.withValues(alpha: 0.08)
+                : AppColors.surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: isSelected ? AppColors.primary : AppColors.border,
+            ),
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: SizedBox(
+                  width: 56,
+                  height: 56,
+                  child: imageUrl.isNotEmpty
+                      ? AppNetworkImage(
+                          imageUrl: imageUrl,
+                          fallback: _SelectedSiteImagePlaceholder(
+                            color: _markerColorForScore(site.freshnessScore),
+                          ),
+                        )
+                      : _SelectedSiteImagePlaceholder(
+                          color: _markerColorForScore(site.freshnessScore),
+                        ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      site.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.bodyStrong.copyWith(fontSize: 15),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      [
+                        if (site.category.isNotEmpty) site.category,
+                        if (site.city.isNotEmpty) site.city,
+                      ].join(' • '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                isSelected
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_off_rounded,
+                color: isSelected ? AppColors.primary : AppColors.textMuted,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1236,33 +1117,17 @@ class _MapSiteMarker extends StatelessWidget {
             children: [
               if (isSelected)
                 Container(
-                  width: 54,
-                  height: 54,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: color.withValues(alpha: 0.16),
                   ),
                 ),
-              Container(
-                width: isSelected ? 48 : 40,
-                height: isSelected ? 48 : 40,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.18),
-                      blurRadius: 14,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  Icons.place_rounded,
-                  size: isSelected ? 30 : 26,
-                  color: color,
-                ),
+              Icon(
+                Icons.place_rounded,
+                size: isSelected ? 40 : 34,
+                color: color,
               ),
             ],
           ),
@@ -1298,10 +1163,10 @@ class _CurrentLocationMarker extends StatelessWidget {
   }
 }
 
-class _SelectedSitePlaceholder extends StatelessWidget {
+class _SelectedSiteImagePlaceholder extends StatelessWidget {
   final Color color;
 
-  const _SelectedSitePlaceholder({required this.color});
+  const _SelectedSiteImagePlaceholder({required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -1310,14 +1175,11 @@ class _SelectedSitePlaceholder extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            color.withValues(alpha: 0.24),
-            AppColors.surfaceAlt,
-          ],
+          colors: [color.withValues(alpha: 0.22), AppColors.surfaceAlt],
         ),
       ),
       alignment: Alignment.center,
-      child: Icon(Icons.place_outlined, color: color, size: 36),
+      child: Icon(Icons.place_rounded, size: 34, color: color),
     );
   }
 }

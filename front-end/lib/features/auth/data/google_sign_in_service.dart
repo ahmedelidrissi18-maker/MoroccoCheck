@@ -73,21 +73,28 @@ class GoogleSignInService {
     try {
       final GoogleSignInAccount account = await _googleSignIn.authenticate();
       final GoogleSignInAuthentication authentication = account.authentication;
+      final String? googleIdToken = authentication.idToken?.trim();
       final AuthCredential credential = GoogleAuthProvider.credential(
-        idToken: authentication.idToken,
+        idToken: googleIdToken,
       );
       final UserCredential userCredential = await _auth.signInWithCredential(
         credential,
       );
-      final String? idToken = await userCredential.user?.getIdToken(true);
+      final String? firebaseIdToken = await userCredential.user?.getIdToken(
+        true,
+      );
 
-      if (idToken == null || idToken.isEmpty) {
+      if (googleIdToken != null && googleIdToken.isNotEmpty) {
+        return googleIdToken;
+      }
+
+      if (firebaseIdToken == null || firebaseIdToken.isEmpty) {
         throw Exception(
           'Firebase n a pas fourni de jeton d identification exploitable.',
         );
       }
 
-      return idToken;
+      return firebaseIdToken;
     } on FirebaseAuthException catch (error) {
       throw Exception(_mapFirebaseException(error));
     } on GoogleSignInException catch (error) {

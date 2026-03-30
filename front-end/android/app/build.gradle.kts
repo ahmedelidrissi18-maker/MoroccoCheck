@@ -15,6 +15,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -56,7 +57,6 @@ android {
     productFlavors {
         create("staging") {
             dimension = "environment"
-            applicationIdSuffix = ".staging"
             versionNameSuffix = "-staging"
             manifestPlaceholders["appLabel"] = "MoroccoCheck Staging"
             manifestPlaceholders["allowCleartextTraffic"] = true
@@ -86,4 +86,8 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }
