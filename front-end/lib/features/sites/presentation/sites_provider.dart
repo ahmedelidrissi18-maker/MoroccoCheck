@@ -541,26 +541,105 @@ class SitesProvider extends ChangeNotifier {
     ];
   }
 
+  List<String> _tokenizeSearchQuery(String value) {
+    final normalized = _normalizeSearchText(value);
+    if (normalized.isEmpty) {
+      return const <String>[];
+    }
+
+    return normalized.split(' ').where((token) => token.isNotEmpty).toList();
+  }
+
+  String _normalizeSearchText(String value) {
+    const replacements = <String, String>{
+      '\u00E0': 'a',
+      '\u00E1': 'a',
+      '\u00E2': 'a',
+      '\u00E3': 'a',
+      '\u00E4': 'a',
+      '\u00E5': 'a',
+      '\u00E7': 'c',
+      '\u00E8': 'e',
+      '\u00E9': 'e',
+      '\u00EA': 'e',
+      '\u00EB': 'e',
+      '\u00EC': 'i',
+      '\u00ED': 'i',
+      '\u00EE': 'i',
+      '\u00EF': 'i',
+      '\u00F1': 'n',
+      '\u00F2': 'o',
+      '\u00F3': 'o',
+      '\u00F4': 'o',
+      '\u00F5': 'o',
+      '\u00F6': 'o',
+      '\u00F9': 'u',
+      '\u00FA': 'u',
+      '\u00FB': 'u',
+      '\u00FC': 'u',
+      '\u00FD': 'y',
+      '\u00FF': 'y',
+      '\u0153': 'oe',
+      '\u00E6': 'ae',
+    };
+
+    final buffer = StringBuffer();
+
+    for (final rune in value.toLowerCase().runes) {
+      final character = String.fromCharCode(rune);
+      final replacement = replacements[character];
+
+      if (replacement != null) {
+        buffer.write(replacement);
+      } else if (RegExp(r'[a-z0-9]').hasMatch(character)) {
+        buffer.write(character);
+      } else {
+        buffer.write(' ');
+      }
+    }
+
+    return buffer.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  bool _matchesSearchQuery(Site site) {
+    final tokens = _tokenizeSearchQuery(_searchQuery);
+    if (tokens.isEmpty) {
+      return true;
+    }
+
+    final searchableText = _normalizeSearchText([
+      site.name,
+      site.description,
+      site.category,
+      site.subcategory ?? '',
+      site.address,
+      site.city,
+      site.region,
+      site.amenities.join(' '),
+    ].join(' '));
+
+    final searchableWords = searchableText
+        .split(' ')
+        .where((word) => word.isNotEmpty)
+        .toList();
+
+    return tokens.every((token) {
+      if (searchableText.contains(token)) {
+        return true;
+      }
+
+      if (token.length >= 8) {
+        final tokenPrefix = token.substring(0, 6);
+        return searchableWords.any((word) => word.startsWith(tokenPrefix));
+      }
+
+      return false;
+    });
+  }
+
   void _applyFilters() {
     _filteredSites = _allSites.where((site) {
-      final normalizedSearchQuery = _searchQuery.toLowerCase();
-      final description = site.description.toLowerCase();
-      final category = site.category.toLowerCase();
-      final subcategory = (site.subcategory ?? '').toLowerCase();
-      final city = site.city.toLowerCase();
-      final region = site.region.toLowerCase();
-      final amenities = site.amenities
-          .map((item) => item.toLowerCase())
-          .join(' ');
-      final bool matchesSearch =
-          normalizedSearchQuery.isEmpty ||
-          site.name.toLowerCase().contains(normalizedSearchQuery) ||
-          description.contains(normalizedSearchQuery) ||
-          category.contains(normalizedSearchQuery) ||
-          subcategory.contains(normalizedSearchQuery) ||
-          city.contains(normalizedSearchQuery) ||
-          region.contains(normalizedSearchQuery) ||
-          amenities.contains(normalizedSearchQuery);
+      final bool matchesSearch = _matchesSearchQuery(site);
 
       final bool matchesCategory =
           _selectedCategoryId == null || site.categoryId == _selectedCategoryId;

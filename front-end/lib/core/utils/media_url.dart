@@ -10,3 +10,26 @@ String buildMediaUrl(String? rawPath) {
   final clean = rawPath.startsWith('/') ? rawPath : '/$rawPath';
   return '$base$clean';
 }
+
+String buildSiteStaticMapUrl({
+  required double latitude,
+  required double longitude,
+  int zoom = 15,
+  String size = '1200x700',
+}) {
+  if (latitude == 0 && longitude == 0) {
+    return '';
+  }
+
+  return Uri.https(
+    'staticmap.openstreetmap.de',
+    '/staticmap.php',
+    <String, String>{
+      'center': '$latitude,$longitude',
+      'zoom': '$zoom',
+      'size': size,
+      'maptype': 'mapnik',
+      'markers': '$latitude,$longitude,red-pushpin',
+    },
+  ).toString();
+}

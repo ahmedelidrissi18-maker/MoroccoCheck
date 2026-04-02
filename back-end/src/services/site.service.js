@@ -49,6 +49,38 @@ function parseBooleanFilter(value) {
   return normalized === "true" || normalized === "1" || normalized === "yes";
 }
 
+function buildTokenizedSearchFilter(value, searchableSql) {
+  const tokens = String(value ?? "")
+    .toLowerCase()
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter(Boolean);
+
+  if (!tokens.length) {
+    return null;
+  }
+
+  const clauses = [];
+  const params = [];
+
+  for (const token of tokens) {
+    params.push(`%${token}%`);
+
+    if (token.length >= 8) {
+      params.push(`%${token.slice(0, 6)}%`);
+      clauses.push(`(${searchableSql} LIKE ? OR ${searchableSql} LIKE ?)`);
+      continue;
+    }
+
+    clauses.push(`${searchableSql} LIKE ?`);
+  }
+
+  return {
+    clause: clauses.map((clause) => `(${clause})`).join(" AND "),
+    params,
+  };
+}
+
 export async function listSites(filters, currentUser = null) {
   const { page, limit, offset } = parsePagination(filters);
   const where = ["ts.deleted_at IS NULL", "ts.is_active = TRUE"];
@@ -100,11 +132,27 @@ export async function listSites(filters, currentUser = null) {
     params.push(Number(filters.min_rating));
   }
   if (filters.q) {
-    where.push(
-      "(ts.name LIKE ? OR ts.description LIKE ? OR ts.address LIKE ?)",
+    const searchFilter = buildTokenizedSearchFilter(
+      filters.q,
+      `LOWER(CONCAT_WS(' ',
+        ts.name,
+        ts.name_ar,
+        ts.description,
+        ts.address,
+        ts.city,
+        ts.region,
+        COALESCE(ts.subcategory, ''),
+        c.name,
+        c.name_ar,
+        COALESCE(parent_c.name, ''),
+        COALESCE(parent_c.name_ar, '')
+      ))`,
     );
-    const search = `%${filters.q}%`;
-    params.push(search, search, search);
+
+    if (searchFilter) {
+      where.push(searchFilter.clause);
+      params.push(...searchFilter.params);
+    }
   }
   if (parseBooleanFilter(filters.claimable)) {
     where.push("ts.owner_id IS NULL");

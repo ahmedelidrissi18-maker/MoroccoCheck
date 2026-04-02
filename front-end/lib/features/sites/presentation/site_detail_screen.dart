@@ -277,10 +277,10 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
               flexibleSpace: FlexibleSpaceBar(
                 background: Stack(
                   fit: StackFit.expand,
-                    children: [
-                      site.imageUrl.isNotEmpty
+                  children: [
+                    site.primaryImageUrl.isNotEmpty
                         ? AppNetworkImage(
-                            imageUrl: site.imageUrl,
+                            imageUrl: site.primaryImageUrl,
                             fit: BoxFit.cover,
                             fallback: const SiteDetailPlaceholderImage(),
                           )

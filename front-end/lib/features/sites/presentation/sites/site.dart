@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import '../../../../core/utils/media_url.dart';
+
 class SiteOpeningHour {
   final String dayOfWeek;
   final String? opensAt;
@@ -399,5 +401,20 @@ class Site {
         ? kilometers.toStringAsFixed(0)
         : kilometers.toStringAsFixed(1).replaceAll('.', ',');
     return '$formatted km';
+  }
+
+  String get primaryImageUrl {
+    if (previewPhotos.isNotEmpty) {
+      return previewPhotos.first;
+    }
+
+    if (imageUrl.isNotEmpty) {
+      return imageUrl;
+    }
+
+    return buildSiteStaticMapUrl(
+      latitude: latitude,
+      longitude: longitude,
+    );
   }
 }

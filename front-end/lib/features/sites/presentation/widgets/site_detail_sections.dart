@@ -618,9 +618,9 @@ class RelatedSiteCard extends StatelessWidget {
               child: SizedBox(
                 width: 68,
                 height: 68,
-                child: site.imageUrl.isNotEmpty
+                child: site.primaryImageUrl.isNotEmpty
                     ? AppNetworkImage(
-                        imageUrl: site.imageUrl,
+                        imageUrl: site.primaryImageUrl,
                         fit: BoxFit.cover,
                         fallback: const _CompactSitePlaceholder(),
                       )

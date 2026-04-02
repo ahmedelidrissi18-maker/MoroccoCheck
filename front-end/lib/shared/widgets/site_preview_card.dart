@@ -240,9 +240,7 @@ class _HeroImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final height = compact ? 110.0 : 220.0;
     final radius = compact ? 22.0 : RadiusTokens.card;
-    final imageUrl = site.previewPhotos.isNotEmpty
-        ? site.previewPhotos.first
-        : site.imageUrl;
+    final imageUrl = site.primaryImageUrl;
 
     return Stack(
       children: [
